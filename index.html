@@ -3,30 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>五寮尖生乳存摺 Lite</title>
+    <title>五寮尖生乳存摺 V9.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.2.37/lunar.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 
     <style>
         body { background-color: #f8fafc; font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
         [v-cloak] { display: none; }
         
-        /* 表格優化樣式 */
+        /* 表格容器 */
         .milk-table-container { 
             overflow-x: auto; 
             position: relative; 
-            padding-bottom: 80px; /* 預留底部空間 */
+            height: calc(100vh - 180px); /* 扣除頂部和底部高度 */
             -webkit-overflow-scrolling: touch;
         }
         .milk-table { 
             border-collapse: separate; 
             border-spacing: 0; 
-            width: 100%; 
+            /* width: 100%; 不設寬度以允許橫向無限延伸 */
         }
         .milk-table th, .milk-table td { 
-            padding: 12px 8px; 
+            padding: 8px 4px; 
             text-align: center; 
             border-bottom: 1px solid #e2e8f0; 
             border-right: 1px solid #f1f5f9;
@@ -34,7 +35,7 @@
             font-size: 13px;
             font-weight: 700;
         }
-        /* 凍結首欄 */
+        /* 凍結首欄 (項目名稱) */
         .milk-table td:first-child, .milk-table th:first-child {
             position: sticky;
             left: 0;
@@ -48,30 +49,46 @@
             min-width: 100px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.02);
         }
-        .milk-table th { background-color: #f8fafc; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .milk-table th:first-child { background-color: #f8fafc; z-index: 30; }
+        /* 凍結首列 (日期) */
+        .milk-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        /* 左上角交界處 */
+        .milk-table thead th:first-child {
+            z-index: 30;
+            background-color: #f8fafc;
+        }
 
-        /* 儲存格狀態顏色 */
+        .milk-table th { color: #475569; font-size: 11px; text-transform: uppercase; }
+
+        /* 儲存格樣式 */
         .editable-cell { cursor: pointer; transition: background 0.2s; }
         .editable-cell:active { background-color: #f1f5f9; }
         .val-input { color: #10b981; } /* 進帳 */
-        .val-output { color: #ef4444; } /* 支出 */
+        .val-adhoc { color: #ef4444; } /* 團購負數 */
         .val-balance { color: #3b82f6; font-weight: 900; background-color: #eff6ff; }
         .val-negative { color: #ef4444; background-color: #fef2f2; }
         
-        /* 標記手動修改過的數據 */
         .manual-dot {
             position: absolute; top: 4px; right: 4px; 
-            width: 6px; h-6px; border-radius: 50%;
+            width: 5px; h-5px; border-radius: 50%;
             background-color: #6366f1;
         }
+
+        /* 農曆字體 */
+        .lunar-text { font-size: 9px; color: #94a3b8; font-weight: normal; margin-top: 1px; }
+        .weekend-col { background-color: #fff7ed; } /* 週末底色 */
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col text-slate-800">
 
 <div id="app" v-cloak class="h-full flex flex-col relative">
 
-    <header class="bg-white px-5 py-4 border-b border-slate-100 flex-none z-30 shadow-sm">
+    <header class="bg-white px-4 py-3 border-b border-slate-100 flex-none z-30 shadow-sm">
         <div class="flex justify-between items-end">
             <div>
                 <div class="text-[10px] font-bold text-slate-400 mb-1">今日預估結餘 (22:00)</div>
@@ -80,28 +97,28 @@
                 </div>
             </div>
             <div class="text-right">
-                <div class="text-[10px] font-bold text-slate-400 mb-1">出貨總需 (09:00)</div>
-                <div class="text-xl font-bold text-red-500">
-                    -{{ todayDemand.toFixed(1) }} L
+                <div class="text-[10px] font-bold text-slate-400 mb-1">週期範圍</div>
+                <div class="text-xs font-bold text-blue-600">
+                    今天 <i class="fas fa-arrow-right text-[10px]"></i> 2026/02/24
                 </div>
             </div>
         </div>
         
-        <div class="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
+        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
             <div class="bg-blue-500 h-full transition-all duration-500" :style="{ width: Math.min(100, Math.max(0, (todayEndStock / 100) * 100)) + '%' }"></div>
         </div>
     </header>
 
-    <main class="flex-1 bg-white relative overflow-hidden flex flex-col">
-        <div class="milk-table-container h-full">
+    <main class="flex-1 bg-white relative overflow-hidden flex flex-col pb-20"> <div class="milk-table-container h-full">
             <table class="milk-table">
                 <thead>
                     <tr>
-                        <th class="h-12 bg-slate-50">項目 \ 日期</th>
-                        <th v-for="(day, idx) in milkBankDays" :key="idx" class="min-w-[85px]" :class="{'bg-blue-50/50': idx===0}">
-                            <div class="flex flex-col items-center">
-                                <span class="text-[10px] text-slate-400">{{ day.dateStr }}</span>
+                        <th class="h-14 bg-slate-50 border-r-2"><div class="pt-2 pl-1">項目 \ 日期</div></th>
+                        <th v-for="(day, idx) in milkBankDays" :key="idx" class="min-w-[85px]" :class="{'bg-orange-50': day.isWeekend}">
+                            <div class="flex flex-col items-center justify-center h-full">
+                                <span class="text-[10px] text-slate-500">{{ day.dateStr }}</span>
                                 <span class="text-sm font-black" :class="idx===0 ? 'text-blue-600' : 'text-slate-700'">{{ day.dayName }}</span>
+                                <span class="lunar-text">{{ day.lunarStr }}</span>
                             </div>
                         </th>
                     </tr>
@@ -111,7 +128,7 @@
                         <td><i class="fas fa-clipboard-check text-slate-400 w-4"></i> 07:00 期初庫存</td>
                         <td v-for="(day, idx) in milkBankDays" :key="idx" 
                             @click="openInputModal('inventory', day)"
-                            class="editable-cell relative">
+                            class="editable-cell relative" :class="{'bg-orange-50/30': day.isWeekend}">
                             <span :class="day.isManual.inventory ? 'text-indigo-600 font-bold' : 'text-slate-400 italic'">
                                 {{ day.startStock.toFixed(1) }}
                             </span>
@@ -122,40 +139,42 @@
                         <td><i class="fas fa-tint text-emerald-400 w-4"></i> 08:00 晨間收乳</td>
                         <td v-for="(day, idx) in milkBankDays" :key="idx" 
                             @click="openInputModal('harvestAM', day)"
-                            class="editable-cell val-input relative">
+                            class="editable-cell val-input relative" :class="{'bg-orange-50/30': day.isWeekend}">
                             +{{ day.harvestAM }}
                             <div v-if="day.isManual.harvestAM" class="manual-dot"></div>
                         </td>
                     </tr>
-                    <tr class="bg-slate-50/30">
+                    <tr class="bg-slate-50/50">
                         <td><i class="fas fa-truck text-red-400 w-4"></i> 09:00 訂單出貨</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" class="text-slate-500 font-medium">
+                        <td v-for="(day, idx) in milkBankDays" :key="idx" class="text-slate-500 font-medium text-xs">
                             -{{ day.demand.toFixed(1) }}
                         </td>
                     </tr>
-                    <tr>
-                        <td><i class="fas fa-box text-orange-400 w-4"></i> 14:00 團購/調貨</td>
+                    
+                    <tr v-for="n in 3" :key="`adhoc${n}`">
+                        <td><i class="fas fa-box text-orange-400 w-4"></i> 14:00 團購出貨 {{n}}</td>
                         <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            @click="openInputModal('adhoc', day)"
-                            class="editable-cell font-bold relative"
-                            :class="day.adhoc >= 0 ? 'text-emerald-600' : 'text-red-500'">
-                            {{ day.adhoc > 0 ? '+' : '' }}{{ day.adhoc }}
-                            <div v-if="day.isManual.adhoc" class="manual-dot"></div>
+                            @click="openInputModal(`adhoc${n}`, day)"
+                            class="editable-cell relative"
+                            :class="[day[`adhoc${n}`] !== 0 ? 'val-adhoc font-bold' : 'text-slate-300', day.isWeekend ? 'bg-orange-50/30' : '']">
+                            {{ day[`adhoc${n}`] }}
+                            <div v-if="day.isManual[`adhoc${n}`]" class="manual-dot"></div>
                         </td>
                     </tr>
+
                     <tr>
                         <td><i class="fas fa-moon text-blue-400 w-4"></i> 20:00 晚間收乳</td>
                         <td v-for="(day, idx) in milkBankDays" :key="idx" 
                             @click="openInputModal('harvestPM', day)"
-                            class="editable-cell val-input relative">
+                            class="editable-cell val-input relative" :class="{'bg-orange-50/30': day.isWeekend}">
                             +{{ day.harvestPM }}
                             <div v-if="day.isManual.harvestPM" class="manual-dot"></div>
                         </td>
                     </tr>
-                    <tr class="h-14">
-                        <td class="font-black text-slate-800 bg-slate-50">22:00 預估結餘</td>
+                    <tr class="h-12">
+                        <td class="font-black text-slate-800 bg-slate-50 border-t border-slate-200">22:00 預估結餘</td>
                         <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            class="val-balance text-lg"
+                            class="val-balance text-sm border-t border-slate-200"
                             :class="{'val-negative': day.endStock < 0}">
                             {{ day.endStock.toFixed(1) }}
                         </td>
@@ -165,37 +184,41 @@
         </div>
     </main>
 
-    <div class="fixed bottom-6 left-6 right-6 z-40">
-        <div class="bg-slate-900/90 backdrop-blur-md text-white rounded-2xl shadow-2xl p-2 flex justify-between items-center pl-4 pr-2">
+    <div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe">
+        <div class="flex justify-between items-center px-4 py-2">
             <div class="flex flex-col">
-                <span class="text-[10px] text-slate-400 font-bold uppercase">Actions</span>
-                <span class="text-xs font-bold text-white">快速記帳</span>
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Quick Action</span>
+                <span class="text-xs font-bold text-slate-800">快速記帳</span>
             </div>
-            <div class="flex gap-2">
-                <button @click="openQuickAction('inventory')" class="flex flex-col items-center justify-center w-12 h-12 bg-indigo-600 rounded-xl active:bg-indigo-500 transition shadow-lg shadow-indigo-500/30">
+            <div class="flex gap-3">
+                <button @click="openQuickAction('inventory')" class="flex flex-col items-center justify-center w-12 h-10 bg-indigo-50 text-indigo-600 rounded-lg active:bg-indigo-100 transition">
                     <i class="fas fa-clipboard-check text-sm mb-0.5"></i>
                     <span class="text-[9px] font-bold">盤點</span>
                 </button>
-                <button @click="openQuickAction('harvestAM')" class="flex flex-col items-center justify-center w-12 h-12 bg-emerald-600 rounded-xl active:bg-emerald-500 transition shadow-lg shadow-emerald-500/30">
+                <button @click="openQuickAction('harvestAM')" class="flex flex-col items-center justify-center w-12 h-10 bg-emerald-50 text-emerald-600 rounded-lg active:bg-emerald-100 transition">
                     <i class="fas fa-tint text-sm mb-0.5"></i>
-                    <span class="text-[9px] font-bold">收乳</span>
+                    <span class="text-[9px] font-bold">晨收</span>
                 </button>
-                <button @click="openQuickAction('adhoc')" class="flex flex-col items-center justify-center w-12 h-12 bg-orange-600 rounded-xl active:bg-orange-500 transition shadow-lg shadow-orange-500/30">
-                    <i class="fas fa-plus text-sm mb-0.5"></i>
-                    <span class="text-[9px] font-bold">調貨</span>
+                <button @click="openQuickAction('harvestPM')" class="flex flex-col items-center justify-center w-12 h-10 bg-blue-50 text-blue-600 rounded-lg active:bg-blue-100 transition">
+                    <i class="fas fa-moon text-sm mb-0.5"></i>
+                    <span class="text-[9px] font-bold">晚收</span>
                 </button>
-                <button @click="resetData" class="flex flex-col items-center justify-center w-12 h-12 bg-slate-700 rounded-xl active:bg-slate-600 transition">
-                    <i class="fas fa-trash text-sm mb-0.5"></i>
-                    <span class="text-[9px] font-bold">重置</span>
+                <button @click="openQuickAction('adhoc1')" class="flex flex-col items-center justify-center w-12 h-10 bg-orange-50 text-orange-600 rounded-lg active:bg-orange-100 transition">
+                    <i class="fas fa-box text-sm mb-0.5"></i>
+                    <span class="text-[9px] font-bold">團購</span>
+                </button>
+                <button @click="resetData" class="flex flex-col items-center justify-center w-10 h-10 text-slate-300 rounded-lg active:text-slate-500 transition">
+                    <i class="fas fa-trash text-sm"></i>
                 </button>
             </div>
         </div>
+        <div class="h-4 bg-white"></div>
     </div>
 
     <transition name="fade">
         <div v-if="inputModal.show" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center pointer-events-none">
             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-opacity" @click="inputModal.show = false"></div>
-            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl relative p-6 pointer-events-auto transform transition-transform duration-300">
+            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl relative p-6 pointer-events-auto transform transition-transform duration-300 pb-10">
                 <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
                 
                 <div class="flex justify-between items-start mb-6">
@@ -203,18 +226,21 @@
                         <h3 class="text-xl font-black text-slate-800">{{ inputModal.title }}</h3>
                         <p class="text-xs text-slate-400 font-bold mt-1">{{ inputModal.subtitle }}</p>
                     </div>
-                    <div class="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-500">
-                        {{ inputModal.dateLabel }}
+                    <div class="text-right">
+                        <div class="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-500 mb-1">
+                            {{ inputModal.dateLabel }}
+                        </div>
+                        <div class="text-[10px] text-slate-400">{{ inputModal.lunarLabel }}</div>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-4 mb-8">
-                    <button @click="adjustValue(-10)" class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 text-lg font-bold hover:bg-slate-200 active:scale-95 transition"><i class="fas fa-minus"></i></button>
+                    <button @click="adjustValue(-1)" class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 text-lg font-bold hover:bg-slate-200 active:scale-95 transition"><i class="fas fa-minus"></i></button>
                     <div class="flex-1 relative">
                         <input v-model.number="inputModal.value" type="number" class="w-full text-center text-4xl font-black text-slate-800 border-b-2 border-slate-200 py-2 focus:outline-none focus:border-blue-500 bg-transparent">
                         <span class="absolute right-2 bottom-4 text-slate-300 font-bold text-sm">L</span>
                     </div>
-                    <button @click="adjustValue(10)" class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 text-lg font-bold hover:bg-slate-200 active:scale-95 transition"><i class="fas fa-plus"></i></button>
+                    <button @click="adjustValue(1)" class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 text-lg font-bold hover:bg-slate-200 active:scale-95 transition"><i class="fas fa-plus"></i></button>
                 </div>
 
                 <button @click="confirmInput" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-[0.98] transition">
@@ -234,29 +260,29 @@
         setup() {
             // State
             const rawRouteData = ref([]);
-            const savedData = ref({}); // LocalStorage data
-            const inputModal = ref({ show: false, field: '', dateKey: '', value: 0, title: '', subtitle: '', dateLabel: '' });
+            const savedData = ref({}); 
+            const inputModal = ref({ show: false, field: '', dateKey: '', value: 0, title: '', subtitle: '', dateLabel: '', lunarLabel: '' });
             const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
             
-            // Default Config
-            const defaults = { harvestAM: 50, harvestPM: 40 };
+            // 預設值更新
+            const defaults = { harvestAM: 13, harvestPM: 15 };
 
-            // 1. Data Persistence (LocalStorage)
+            // 1. Storage
             const loadSavedData = () => {
-                const json = localStorage.getItem('milkBankLite_v1');
+                const json = localStorage.getItem('milkBankPro_v9');
                 if (json) savedData.value = JSON.parse(json);
             };
             const saveToStorage = () => {
-                localStorage.setItem('milkBankLite_v1', JSON.stringify(savedData.value));
+                localStorage.setItem('milkBankPro_v9', JSON.stringify(savedData.value));
             };
             const resetData = () => {
-                if(confirm('確定要重置所有手動輸入的庫存數據嗎？')) {
+                if(confirm('確定要重置數據嗎？')) {
                     savedData.value = {};
                     saveToStorage();
                 }
             };
 
-            // 2. CSV Loading (Google Sheet)
+            // 2. CSV
             const fetchSheet = () => {
                 fetch(googleSheetUrl).then(r=>r.text()).then(t => {
                     const lines = t.trim().split('\n');
@@ -267,7 +293,6 @@
                         const weekly = [];
                         for(let d=0; d<7; d++) {
                             const s = 3 + (d*5);
-                            // Simple parser
                             const sum = [0,1,2,3,4].reduce((acc, off) => {
                                 const val = row[s+off] ? parseInt(row[s+off].toString().replace(/２/g,'2').trim()) || 0 : 0;
                                 return acc + val;
@@ -280,76 +305,89 @@
                 });
             };
 
-            // 3. Core Logic: The 4-Day Window
+            // 3. Logic: Long Range Table (Today -> 2026/02/24)
             const milkBankDays = computed(() => {
                 const days = [];
-                const today = new Date(); // Or consistent anchor
-                // Reset time to avoid drift
-                today.setHours(0,0,0,0);
+                const startDate = new Date(); // Today
+                startDate.setHours(0,0,0,0);
+                
+                const endDate = new Date('2026-02-24');
+                endDate.setHours(0,0,0,0);
+
+                // 計算總天數
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
                 let runningStock = 0;
 
-                // Loop 4 days
-                for(let i=0; i<4; i++) {
-                    const dObj = new Date(today);
-                    dObj.setDate(today.getDate() + i);
+                for(let i=0; i<diffDays; i++) {
+                    const dObj = new Date(startDate);
+                    dObj.setDate(startDate.getDate() + i);
                     
                     const y = dObj.getFullYear();
                     const m = String(dObj.getMonth()+1).padStart(2,'0');
                     const d = String(dObj.getDate()).padStart(2,'0');
                     const dateKey = `${y}-${m}-${d}`;
-                    const dayName = weekDays[dObj.getDay()];
+                    const dayIdx = dObj.getDay();
+                    const dayName = weekDays[dayIdx];
                     
-                    // Logic: Get Demand (Morning Shipment)
-                    // JS Day: Sun=0, Mon=1... Sheet logic usually Mon=0. 
-                    // Let's assume Sheet Col 1 is Monday.
-                    const sheetIdx = dObj.getDay() === 0 ? 6 : dObj.getDay() - 1;
-                    
+                    // 農曆計算
+                    let lunarStr = '';
+                    try {
+                        const lunar = Lunar.fromSolar(Solar.fromYmd(y, parseInt(m), parseInt(d)));
+                        lunarStr = lunar.getMonthInChinese() + "月" + lunar.getDayInChinese();
+                        // 標記重要節日可在此擴充
+                    } catch(e) { lunarStr = '-'; }
+
+                    // Demand Logic
+                    const sheetIdx = dayIdx === 0 ? 6 : dayIdx - 1;
                     let totalBottles = 0;
                     rawRouteData.value.forEach(row => {
                         if(row.weekly[sheetIdx]) totalBottles += row.weekly[sheetIdx];
                     });
                     const demand = totalBottles * 0.18;
 
-                    // Logic: Get Saved Values
+                    // Data Retrieval
                     const dayData = savedData.value[dateKey] || {};
-                    
-                    // Fields
                     const harvestAM = dayData.harvestAM !== undefined ? dayData.harvestAM : defaults.harvestAM;
                     const harvestPM = dayData.harvestPM !== undefined ? dayData.harvestPM : defaults.harvestPM;
-                    const adhoc = dayData.adhoc || 0;
                     
-                    // Inventory Logic
-                    // If manual inventory is set for THIS day, use it.
-                    // Otherwise, carry over from previous runningStock.
-                    // For the very first day (Today), if no manual inventory, assume 0 or last known.
+                    // 團購 3 行 (預設 0, 介面建議輸入負數)
+                    const adhoc1 = dayData.adhoc1 || 0;
+                    const adhoc2 = dayData.adhoc2 || 0;
+                    const adhoc3 = dayData.adhoc3 || 0;
+
                     let startStock = runningStock;
-                    
                     if(dayData.inventory !== undefined) {
                         startStock = dayData.inventory;
                     } else if (i === 0 && dayData.inventory === undefined) {
-                        // First day default
-                        startStock = 10; 
+                        startStock = 10; // Day 1 Default
                     }
 
-                    const endStock = startStock + harvestAM + harvestPM + adhoc - demand;
+                    // 結餘 = 期初 + 晨收 + 晚收 + (團購1+2+3) - 出貨
+                    // 團購若是負數則自然減少
+                    const endStock = startStock + harvestAM + harvestPM - demand + adhoc1 + adhoc2 + adhoc3;
                     runningStock = endStock;
 
                     days.push({
                         dateKey,
                         dateStr: `${m}/${d}`,
                         dayName,
+                        lunarStr,
+                        isWeekend: dayIdx === 0 || dayIdx === 6,
                         startStock,
                         harvestAM,
                         harvestPM,
-                        adhoc,
+                        adhoc1, adhoc2, adhoc3,
                         demand,
                         endStock,
                         isManual: {
                             inventory: dayData.inventory !== undefined,
                             harvestAM: dayData.harvestAM !== undefined,
                             harvestPM: dayData.harvestPM !== undefined,
-                            adhoc: dayData.adhoc !== undefined && dayData.adhoc !== 0
+                            adhoc1: dayData.adhoc1 !== undefined && dayData.adhoc1 !== 0,
+                            adhoc2: dayData.adhoc2 !== undefined && dayData.adhoc2 !== 0,
+                            adhoc3: dayData.adhoc3 !== undefined && dayData.adhoc3 !== 0,
                         }
                     });
                 }
@@ -357,19 +395,18 @@
             });
 
             const todayEndStock = computed(() => milkBankDays.value[0]?.endStock || 0);
-            const todayDemand = computed(() => milkBankDays.value[0]?.demand || 0);
-
-            // 4. Input Logic
+            
+            // Input Logic
             const openInputModal = (field, day) => {
                 inputModal.value.field = field;
                 inputModal.value.dateKey = day.dateKey;
                 inputModal.value.show = true;
                 inputModal.value.dateLabel = `${day.dateStr} ${day.dayName}`;
+                inputModal.value.lunarLabel = `農曆 ${day.lunarStr}`;
 
-                // Set Titles & Value
                 if(field === 'inventory') {
                     inputModal.value.title = '期初盤點';
-                    inputModal.value.subtitle = '07:00 實際庫存量';
+                    inputModal.value.subtitle = '07:00 實際庫存';
                     inputModal.value.value = day.startStock;
                 } else if(field === 'harvestAM') {
                     inputModal.value.title = '晨間收乳';
@@ -379,10 +416,11 @@
                     inputModal.value.title = '晚間收乳';
                     inputModal.value.subtitle = '20:00 實際產出';
                     inputModal.value.value = day.harvestPM;
-                } else if(field === 'adhoc') {
-                    inputModal.value.title = '團購 / 調貨';
-                    inputModal.value.subtitle = '正數增加(+)，負數出貨(-)';
-                    inputModal.value.value = day.adhoc;
+                } else if(field.startsWith('adhoc')) {
+                    const num = field.replace('adhoc', '');
+                    inputModal.value.title = `團購出貨 ${num}`;
+                    inputModal.value.subtitle = '請輸入負數 (例如 -5)';
+                    inputModal.value.value = day[field];
                 }
             };
 
@@ -396,10 +434,8 @@
 
             const confirmInput = () => {
                 const { dateKey, field, value } = inputModal.value;
-                
                 if(!savedData.value[dateKey]) savedData.value[dateKey] = {};
                 savedData.value[dateKey][field] = value;
-                
                 saveToStorage();
                 inputModal.value.show = false;
             };
@@ -410,15 +446,9 @@
             });
 
             return {
-                milkBankDays,
-                todayEndStock,
-                todayDemand,
+                milkBankDays, todayEndStock,
                 inputModal,
-                openInputModal,
-                openQuickAction,
-                adjustValue,
-                confirmInput,
-                resetData
+                openInputModal, openQuickAction, adjustValue, confirmInput, resetData
             };
         }
     }).mount('#app');
