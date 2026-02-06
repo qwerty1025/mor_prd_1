@@ -3,216 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>五寮尖生乳戰情 V10</title>
+    <title>五寮尖生乳存摺 V12.0 運籌版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.2.37/lunar.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
 
     <style>
-        body { background-color: #f8fafc; font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #f1f5f9; font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
         [v-cloak] { display: none; }
         
-        .milk-table-container { 
-            overflow-x: auto; 
-            position: relative; 
-            height: calc(100vh - 180px); 
-            -webkit-overflow-scrolling: touch;
-        }
+        /* Table Layout */
+        .view-container { height: calc(100vh - 80px); }
         .milk-table { border-collapse: separate; border-spacing: 0; }
         .milk-table th, .milk-table td { 
-            padding: 8px 4px; 
-            text-align: center; 
-            border-bottom: 1px solid #e2e8f0; 
-            border-right: 1px solid #f1f5f9;
-            white-space: nowrap;
-            font-size: 13px;
-            font-weight: 700;
+            padding: 6px 4px; text-align: center; border-bottom: 1px solid #cbd5e1; 
+            border-right: 1px solid #e2e8f0; white-space: nowrap; font-size: 13px;
         }
-        /* Sticky Columns/Rows */
+        /* Frozen First Column */
         .milk-table td:first-child, .milk-table th:first-child {
             position: sticky; left: 0; background-color: #fff; z-index: 20;
-            border-right: 2px solid #e2e8f0; text-align: left; padding-left: 12px;
-            color: #64748b; font-size: 11px; min-width: 110px;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+            border-right: 2px solid #94a3b8; text-align: left; padding-left: 8px;
+            color: #475569; font-size: 11px; font-weight: 700; min-width: 110px;
         }
-        .milk-table thead th { position: sticky; top: 0; z-index: 10; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; }
-        .milk-table thead th:first-child { z-index: 30; background-color: #f8fafc; }
+        .milk-table thead th { position: sticky; top: 0; z-index: 10; background-color: #f8fafc; border-bottom: 2px solid #94a3b8; height: 50px; }
+        .milk-table thead th:first-child { z-index: 30; }
+
+        /* Cell Styling */
+        .editable-cell { cursor: pointer; height: 42px; position: relative; }
+        .editable-cell:active { background-color: #e2e8f0; }
+        .num-font { font-family: 'Roboto Mono', monospace; font-size: 13px; letter-spacing: -0.5px; }
         
-        .editable-cell { cursor: pointer; transition: background 0.2s; }
-        .editable-cell:active { background-color: #f1f5f9; }
-        .val-input { color: #10b981; }
-        .val-adhoc { color: #ef4444; }
-        .val-balance { color: #3b82f6; font-weight: 900; background-color: #eff6ff; }
-        .val-negative { color: #ef4444; background-color: #fef2f2; }
+        .val-input { color: #059669; } /* Green */
+        .val-deduct { color: #dc2626; } /* Red */
+        .val-flash { color: #db2777; font-weight: bold; background-color: #fce7f3; } /* Pink */
+        .val-bake { color: #92400e; font-weight: bold; background-color: #fef3c7; } /* Amber/Brown */
+        .val-balance { color: #2563eb; font-weight: 900; background-color: #eff6ff; font-size: 14px; }
+        .val-neg { background-color: #fee2e2; color: #b91c1c; }
         
-        .manual-dot {
-            position: absolute; top: 4px; right: 4px; 
-            width: 5px; h-5px; border-radius: 50%;
-            background-color: #6366f1;
-        }
-        .lunar-text { font-size: 9px; color: #94a3b8; font-weight: normal; margin-top: 1px; }
+        .manual-dot { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; background-color: #4f46e5; border: 1px solid white; }
+        .status-badge { position: absolute; bottom: 2px; right: 2px; font-size: 8px; padding: 1px 3px; border-radius: 3px; }
+
+        /* Calendar Grid */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px; }
+        .cal-day { background: white; border-radius: 8px; min-height: 110px; padding: 4px; display: flex; flex-direction: column; border: 1px solid #f1f5f9; }
+        .cal-header { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-bottom: 4px; }
+        
+        /* Modal Checklist */
+        .check-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+        .check-btn { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .check-btn.checked { background-color: #2563eb; border-color: #2563eb; color: white; }
+        .check-btn.split { background-color: #ef4444; border-color: #ef4444; color: white; }
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col text-slate-800">
 
 <div id="app" v-cloak class="h-full flex flex-col relative">
 
-    <header class="bg-white px-4 py-3 border-b border-slate-100 flex-none z-30 shadow-sm">
-        <div class="flex justify-between items-end">
-            <div>
-                <div class="text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                    今日預估結餘 (22:00)
-                    <span v-if="!firebaseConnected" class="text-red-500 animate-pulse">●</span>
-                    <span v-else class="text-emerald-500">●</span>
-                </div>
-                <div class="text-3xl font-black text-slate-800 flex items-baseline gap-1">
-                    {{ todayEndStock.toFixed(1) }} <span class="text-sm text-slate-500 font-bold">kg</span>
-                </div>
-            </div>
-            <div class="text-right">
-                <div class="text-[10px] font-bold text-slate-400 mb-1">今日總出貨</div>
-                <div class="text-xl font-bold text-red-500">
-                    -{{ (todayDemand + todayHomeDelivery).toFixed(1) }} kg
-                </div>
-            </div>
+    <header class="bg-white px-4 py-2 border-b border-slate-200 flex-none z-30 flex justify-between items-center shadow-sm">
+        <div>
+            <div class="text-[10px] font-bold text-slate-400">今日預估 ({{ todayStr }})</div>
+            <div class="text-2xl font-black text-slate-800 num-font">{{ todayEndStock.toFixed(1) }} L</div>
         </div>
-        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div class="bg-blue-500 h-full transition-all duration-500" :style="{ width: Math.min(100, Math.max(0, (todayEndStock / 100) * 100)) + '%' }"></div>
+        <div class="flex gap-2">
+             <button @click="viewMode = viewMode === 'list' ? 'calendar' : 'list'" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition">
+                 <i :class="viewMode === 'list' ? 'fas fa-calendar-alt' : 'fas fa-list'"></i>
+                 {{ viewMode === 'list' ? '月曆' : '列表' }}
+             </button>
         </div>
     </header>
 
-    <main class="flex-1 bg-white relative overflow-hidden flex flex-col pb-20">
-        <div class="milk-table-container h-full">
-            <table class="milk-table">
+    <main class="flex-1 bg-slate-50 relative overflow-hidden">
+        
+        <div v-if="viewMode === 'list'" class="milk-table-container h-full overflow-auto pb-20">
+            <table class="milk-table w-full">
                 <thead>
                     <tr>
-                        <th class="h-14 bg-slate-50 border-r-2"><div class="pt-2 pl-1">項目 \ 日期</div></th>
+                        <th class="h-12 bg-slate-50 border-r-2"><div class="pt-1 pl-1">營運項目</div></th>
                         <th v-for="(day, idx) in milkBankDays" :key="idx" class="min-w-[85px]" :class="{'bg-orange-50': day.isWeekend}">
-                            <div class="flex flex-col items-center justify-center h-full">
-                                <span class="text-[10px] text-slate-500">{{ day.dateStr }}</span>
-                                <span class="text-sm font-black" :class="idx===0 ? 'text-blue-600' : 'text-slate-700'">{{ day.dayName }}</span>
-                                <span class="lunar-text">{{ day.lunarStr }}</span>
+                            <div class="flex flex-col items-center justify-center">
+                                <span class="text-sm font-black" :class="day.isWeekend ? 'text-red-500' : 'text-slate-700'">{{ day.weekDay }}</span>
+                                <span class="text-[10px] text-slate-500 font-bold">{{ day.dateStr }}</span>
                             </div>
                         </th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><i class="fas fa-clipboard-check text-slate-400 w-4"></i> 07:00 期初庫存</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            @click="openInputModal('inventory', day)"
-                            class="editable-cell relative" :class="{'bg-orange-50/30': day.isWeekend}">
-                            <span :class="day.isManual.inventory ? 'text-indigo-600 font-bold' : 'text-slate-400 italic'">
-                                {{ day.startStock.toFixed(1) }}
-                            </span>
-                            <div v-if="day.isManual.inventory" class="manual-dot"></div>
+                        <td><i class="fas fa-cube text-slate-400 w-4"></i> 07:00 期初</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openModal('inventory', day)"
+                            class="editable-cell num-font" :class="{'bg-orange-50/30': day.isWeekend}">
+                            <span :class="day.isManual.inventory ? 'text-indigo-600 font-bold' : 'text-slate-400'">{{ day.startStock.toFixed(1) }}</span>
                         </td>
                     </tr>
                     <tr>
-                        <td><i class="fas fa-tint text-emerald-400 w-4"></i> 08:00 晨間收乳</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            @click="openInputModal('harvestAM', day)"
-                            class="editable-cell val-input relative" :class="{'bg-orange-50/30': day.isWeekend}">
+                        <td><i class="fas fa-tint text-emerald-500 w-4"></i> 08:00 晨收</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openModal('harvestAM', day)"
+                            class="editable-cell val-input num-font" :class="{'bg-orange-50/30': day.isWeekend}">
                             +{{ day.harvestAM }}
                             <div v-if="day.isManual.harvestAM" class="manual-dot"></div>
                         </td>
                     </tr>
-                    <tr class="bg-slate-50/50">
-                        <td><i class="fas fa-truck text-red-400 w-4"></i> 09:00 一般配送</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" class="text-slate-500 font-medium text-xs">
-                            -{{ day.demand.toFixed(1) }}
-                        </td>
-                    </tr>
-                    <tr class="bg-orange-50/20">
-                        <td><i class="fas fa-home text-orange-500 w-4"></i> 10:00 小農宅配</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" class="text-orange-600 font-bold text-xs">
-                            -{{ day.homeDelivery.toFixed(1) }}
-                        </td>
-                    </tr>
-                    
-                    <tr v-for="n in 3" :key="`adhoc${n}`">
-                        <td><i class="fas fa-box text-slate-400 w-4"></i> 14:00 團購/調貨 {{n}}</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            @click="openInputModal(`adhoc${n}`, day)"
-                            class="editable-cell relative"
-                            :class="[day[`adhoc${n}`] !== 0 ? 'val-adhoc font-bold' : 'text-slate-300', day.isWeekend ? 'bg-orange-50/30' : '']">
-                            {{ day[`adhoc${n}`] }}
-                            <div v-if="day.isManual[`adhoc${n}`]" class="manual-dot"></div>
-                        </td>
-                    </tr>
-
                     <tr>
-                        <td><i class="fas fa-moon text-blue-400 w-4"></i> 20:00 晚間收乳</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            @click="openInputModal('harvestPM', day)"
-                            class="editable-cell val-input relative" :class="{'bg-orange-50/30': day.isWeekend}">
-                            +{{ day.harvestPM }}
-                            <div v-if="day.isManual.harvestPM" class="manual-dot"></div>
+                        <td><i class="fas fa-truck text-red-400 w-4"></i> 09:00 晨配</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openModal('deliveryRoute', day)"
+                            class="editable-cell val-deduct num-font" :class="{'bg-orange-50/30': day.isWeekend}">
+                            <span v-if="day.deliveryRoute > 0">-{{ day.deliveryRoute.toFixed(1) }}</span>
+                            <span v-else class="text-slate-200">-</span>
+                            <div v-if="day.isManual.deliveryRoute" class="manual-dot"></div>
                         </td>
                     </tr>
-                    <tr class="h-12">
-                        <td class="font-black text-slate-800 bg-slate-50 border-t border-slate-200">22:00 預估結餘</td>
-                        <td v-for="(day, idx) in milkBankDays" :key="idx" 
-                            class="val-balance text-sm border-t border-slate-200"
-                            :class="{'val-negative': day.endStock < 0}">
+                    <tr class="bg-blue-50/40">
+                        <td><i class="fas fa-users text-blue-500 w-4"></i> 10:00 家庭</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openChecklist(day)"
+                            class="editable-cell text-blue-700 font-bold num-font relative" :class="{'bg-orange-50/30': day.isWeekend}">
+                            <span v-if="day.deliveryHome > 0">-{{ day.deliveryHome.toFixed(1) }}</span>
+                            <span v-else class="text-slate-200">-</span>
+                            <div v-if="day.homeStatus.pending === 0 && day.homeStatus.total > 0" class="status-badge bg-green-100 text-green-700">全到</div>
+                            <div v-else-if="day.homeStatus.partial > 0" class="status-badge bg-red-100 text-red-600">拆單</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-bullhorn text-pink-500 w-4"></i> 快閃活動</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openModal('flash', day)"
+                            class="editable-cell val-flash num-font text-xs" :class="{'bg-orange-50/30': day.isWeekend}">
+                            <div v-if="day.flash.vol > 0">
+                                -{{ day.flash.vol }}L<br>
+                                <span class="text-[9px] text-pink-700 scale-90 block truncate max-w-[60px] mx-auto">{{ day.flash.loc }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-cookie-bite text-amber-600 w-4"></i> 加工製作</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openModal('processing', day)"
+                            class="editable-cell val-bake num-font text-xs" :class="{'bg-orange-50/30': day.isWeekend}">
+                            <div v-if="day.process.vol > 0">
+                                -{{ day.process.vol.toFixed(1) }}<br>
+                                <span class="text-[9px] text-amber-800">{{ day.process.desc }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-moon text-indigo-400 w-4"></i> 20:00 晚收</td>
+                        <td v-for="day in milkBankDays" :key="day.key" @click="openModal('harvestPM', day)"
+                            class="editable-cell val-input num-font" :class="{'bg-orange-50/30': day.isWeekend}">
+                            +{{ day.harvestPM }}
+                        </td>
+                    </tr>
+                    <tr class="h-12 border-t-2 border-slate-300">
+                        <td class="font-black text-slate-800 bg-slate-50">22:00 結餘</td>
+                        <td v-for="day in milkBankDays" :key="day.key" 
+                            class="val-balance num-font"
+                            :class="{'val-neg': day.endStock < 0}">
                             {{ day.endStock.toFixed(1) }}
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-    </main>
 
-    <div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe">
-        <div class="flex justify-between items-center px-4 py-2">
-            <div class="flex flex-col">
-                <span class="text-[10px] text-slate-400 font-bold uppercase">Cloud Action</span>
-                <span class="text-xs font-bold text-slate-800">快速記帳</span>
+        <div v-else class="h-full overflow-y-auto pb-20 bg-slate-100 p-2">
+            <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                <div v-for="w in ['日','一','二','三','四','五','六']" :key="w" class="text-xs font-bold text-slate-500">{{w}}</div>
             </div>
-            <div class="flex gap-3">
-                <button @click="openQuickAction('inventory')" class="flex flex-col items-center justify-center w-12 h-10 bg-indigo-50 text-indigo-600 rounded-lg active:bg-indigo-100 transition"><i class="fas fa-clipboard-check text-sm mb-0.5"></i><span class="text-[9px] font-bold">盤點</span></button>
-                <button @click="openQuickAction('harvestAM')" class="flex flex-col items-center justify-center w-12 h-10 bg-emerald-50 text-emerald-600 rounded-lg active:bg-emerald-100 transition"><i class="fas fa-tint text-sm mb-0.5"></i><span class="text-[9px] font-bold">晨收</span></button>
-                <button @click="openQuickAction('harvestPM')" class="flex flex-col items-center justify-center w-12 h-10 bg-blue-50 text-blue-600 rounded-lg active:bg-blue-100 transition"><i class="fas fa-moon text-sm mb-0.5"></i><span class="text-[9px] font-bold">晚收</span></button>
-                <button @click="openQuickAction('adhoc1')" class="flex flex-col items-center justify-center w-12 h-10 bg-orange-50 text-orange-600 rounded-lg active:bg-orange-100 transition"><i class="fas fa-box text-sm mb-0.5"></i><span class="text-[9px] font-bold">團購</span></button>
-                <button @click="resetData" class="flex flex-col items-center justify-center w-10 h-10 text-slate-300 rounded-lg active:text-slate-500 transition"><i class="fas fa-trash text-sm"></i></button>
+            <div class="calendar-grid">
+                <div class="cal-day opacity-0 pointer-events-none"></div>
+                <div class="cal-day opacity-0 pointer-events-none"></div>
+                <div class="cal-day opacity-0 pointer-events-none"></div>
+
+                <div v-for="day in milkBankDays" :key="day.key" 
+                     @click="openModal('inventory', day)"
+                     class="cal-day shadow-sm relative bg-white"
+                     :class="{'border-red-300 bg-red-50': day.endStock < 0}">
+                    
+                    <div class="cal-header">
+                        <span :class="day.isWeekend ? 'text-red-500' : 'text-slate-700'">{{ day.dateStr }}</span>
+                        <span class="text-[9px] text-slate-400">{{ day.lunar }}</span>
+                    </div>
+
+                    <div class="flex-1 flex flex-col justify-end gap-1">
+                        <div v-if="day.flash.vol > 0" class="text-[9px] bg-pink-100 text-pink-700 px-1 rounded font-bold truncate">
+                            快閃:{{ day.flash.loc }}
+                        </div>
+                        <div v-if="day.process.vol > 0" class="text-[9px] bg-amber-100 text-amber-700 px-1 rounded font-bold truncate">
+                            {{ day.process.desc }}
+                        </div>
+                        <div class="text-right text-sm font-black text-blue-600 mt-1" :class="{'text-red-600': day.endStock < 0}">
+                            {{ day.endStock.toFixed(0) }}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="h-4 bg-white"></div>
-    </div>
+    </main>
 
     <transition name="fade">
-        <div v-if="inputModal.show" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center pointer-events-none">
-            <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-opacity" @click="inputModal.show = false"></div>
-            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl relative p-6 pointer-events-auto transform transition-transform duration-300 pb-10">
-                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
-                
-                <div class="flex justify-between items-start mb-6">
+        <div v-if="modal.show && modal.type !== 'checklist'" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm pointer-events-auto" @click="closeModal"></div>
+            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 pointer-events-auto shadow-2xl pb-10">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-black text-slate-800">{{ modal.title }}</h3>
+                    <div class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">{{ modal.dateLabel }}</div>
+                </div>
+
+                <div v-if="modal.type === 'number'" class="flex items-center gap-4 mb-6">
+                    <button @click="adj( -1)" class="w-12 h-12 bg-slate-100 rounded-xl font-bold"><i class="fas fa-minus"></i></button>
+                    <input v-model.number="modal.val" type="number" class="flex-1 text-center text-4xl font-black border-b-2 py-2 bg-transparent focus:outline-none">
+                    <button @click="adj(1)" class="w-12 h-12 bg-slate-100 rounded-xl font-bold"><i class="fas fa-plus"></i></button>
+                </div>
+
+                <div v-if="modal.type === 'flash'" class="space-y-4 mb-6">
                     <div>
-                        <h3 class="text-xl font-black text-slate-800">{{ inputModal.title }}</h3>
-                        <p class="text-xs text-slate-400 font-bold mt-1">{{ inputModal.subtitle }}</p>
+                        <label class="text-xs font-bold text-pink-500">預計備貨量 (L)</label>
+                        <input v-model.number="modal.val" type="number" class="w-full text-3xl font-black border-b-2 border-pink-200 py-2 focus:outline-none">
                     </div>
-                    <div class="text-right">
-                        <div class="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-500 mb-1">{{ inputModal.dateLabel }}</div>
-                        <div class="text-[10px] text-slate-400">{{ inputModal.lunarLabel }}</div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400">活動地點/時段</label>
+                        <input v-model="modal.text" type="text" placeholder="例如：老街入口 14:00" class="w-full bg-slate-50 p-3 rounded-lg text-sm">
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4 mb-8">
-                    <button @click="adjustValue(-1)" class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 text-lg font-bold hover:bg-slate-200 active:scale-95 transition"><i class="fas fa-minus"></i></button>
-                    <div class="flex-1 relative">
-                        <input v-model.number="inputModal.value" type="number" class="w-full text-center text-4xl font-black text-slate-800 border-b-2 border-slate-200 py-2 focus:outline-none focus:border-blue-500 bg-transparent">
-                        <span class="absolute right-2 bottom-4 text-slate-300 font-bold text-sm">kg</span>
+                <div v-if="modal.type === 'process'" class="space-y-4 mb-6">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-amber-50 p-3 rounded-xl border border-amber-100" @click="addProcess('small')">
+                            <div class="text-xs font-bold text-amber-800">小饅頭 (3.7kg)</div>
+                            <div class="text-2xl font-black text-amber-600 mt-1">{{ modal.pSmall }} <span class="text-xs">組</span></div>
+                            <div class="text-[10px] text-amber-400 mt-1">點擊 +1</div>
+                        </div>
+                        <div class="bg-orange-50 p-3 rounded-xl border border-orange-100" @click="addProcess('big')">
+                            <div class="text-xs font-bold text-orange-800">大饅頭 (1.3kg)</div>
+                            <div class="text-2xl font-black text-orange-600 mt-1">{{ modal.pBig }} <span class="text-xs">組</span></div>
+                            <div class="text-[10px] text-orange-400 mt-1">點擊 +1</div>
+                        </div>
                     </div>
-                    <button @click="adjustValue(1)" class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 text-lg font-bold hover:bg-slate-200 active:scale-95 transition"><i class="fas fa-plus"></i></button>
+                    <div class="text-center text-sm font-bold text-slate-400">
+                        總耗用生乳：<span class="text-amber-600 text-xl">{{ ((modal.pSmall*3.7)+(modal.pBig*1.3)).toFixed(1) }}</span> L
+                    </div>
+                    <button @click="modal.pSmall=0; modal.pBig=0" class="text-xs text-red-400 underline w-full text-center">重置數量</button>
                 </div>
 
-                <button @click="confirmInput" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-[0.98] transition">更新至雲端</button>
+                <button @click="saveModal" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200">儲存更新</button>
+            </div>
+        </div>
+    </transition>
+
+    <transition name="fade">
+        <div v-if="modal.show && modal.type === 'checklist'" class="fixed inset-0 z-50 flex flex-col bg-white">
+            <div class="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-white z-10">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800">出貨點名表</h3>
+                    <p class="text-xs text-slate-400">{{ modal.dateLabel }} | 應到 {{ modal.list.length }} 筆</p>
+                </div>
+                <button @click="closeModal" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto px-4 py-2 bg-slate-50">
+                <div v-if="modal.isSunday" class="bg-indigo-50 p-3 rounded-lg mb-4 flex justify-between items-center">
+                    <div class="text-xs text-indigo-800 font-bold">
+                        <i class="fas fa-info-circle mr-1"></i> 這是週日的頁面
+                    </div>
+                    <button @click="loadMondayData" class="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded font-bold">
+                        載入週一訂單 (提前配送)
+                    </button>
+                </div>
+
+                <div v-for="(item, idx) in modal.list" :key="idx" class="check-row">
+                    <div class="flex-1">
+                        <div class="font-bold text-slate-700 text-sm">{{ item.name }}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">
+                            {{ item.big>0 ? item.big+'大' : '' }} {{ item.small>0 ? item.small+'小' : '' }}
+                            ({{ ((item.big*0.95)+(item.small*0.5)).toFixed(2) }}L)
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="toggleStatus(idx, 'split')" 
+                            class="check-btn" :class="{ 'split': item.status === 'split' }">
+                            <i class="fas fa-exclamation text-[10px]"></i>
+                        </button>
+                        <button @click="toggleStatus(idx, 'done')" 
+                            class="check-btn" :class="{ 'checked': item.status === 'done' }">
+                            <i class="fas fa-check text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div v-if="modal.list.length === 0" class="text-center py-10 text-slate-400 text-sm">
+                    本日無預排訂單
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-200 bg-white">
+                <div class="flex justify-between text-xs font-bold mb-2">
+                    <span class="text-slate-500">實際出貨量合計</span>
+                    <span class="text-blue-600 text-lg">{{ modal.computedTotal.toFixed(1) }} L</span>
+                </div>
+                <button @click="saveChecklist" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold">確認出貨</button>
             </div>
         </div>
     </transition>
@@ -221,228 +308,280 @@
 
 <script>
     const { createApp, ref, computed, onMounted } = Vue;
-    
-    // Firebase Config
-    const firebaseConfig = {
-        apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
-        authDomain: "crm-ts-1225-001.firebaseapp.com",
-        databaseURL: "https://crm-ts-1225-001-default-rtdb.firebaseio.com",
-        projectId: "crm-ts-1225-001",
-        storageBucket: "crm-ts-1225-001.firebasestorage.app",
-        messagingSenderId: "925760221722",
-        appId: "1:925760221722:web:1aeda0b82f1f16b8dcd7a3"
-    };
 
-    let db;
-    try { firebase.initializeApp(firebaseConfig); db = firebase.database(); } catch (e) { console.error(e); }
-
-    // CSV URLs
-    const routeCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=216467280&single=true&output=csv';
-    const homeCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=59343971&single=true&output=csv';
+    // Data Source
+    const CSV_ROUTE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=216467280&single=true&output=csv';
+    const CSV_HOME = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=59343971&single=true&output=csv';
 
     createApp({
         setup() {
-            const rawRouteData = ref([]);
-            const rawHomeData = ref([]);
+            // State
+            const rawRoute = ref([]); // Array[7]
+            const rawHome = ref([]); // Array[5] of [{name, big, small, uuid}]
             const savedData = ref({}); 
-            const firebaseConnected = ref(false);
-            const inputModal = ref({ show: false, field: '', dateKey: '', value: 0, title: '', subtitle: '', dateLabel: '', lunarLabel: '' });
-            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-            
-            const defaults = { harvestAM: 13, harvestPM: 15 };
+            const viewMode = ref('list');
+            const modal = ref({ 
+                show: false, type: '', title: '', dateLabel: '', key: '', 
+                val: 0, text: '', pSmall: 0, pBig: 0, 
+                list: [], isSunday: false, computedTotal: 0 
+            });
 
-            // 1. Firebase Logic
-            const initFirebase = () => {
-                if(!db) return;
-                db.ref('milk_bank_v2').on('value', (snap) => {
-                    savedData.value = snap.val() || {};
-                    firebaseConnected.value = true;
-                });
-            };
-            
-            const saveToCloud = (dateKey, field, value) => {
-                if(!db) return;
-                db.ref(`milk_bank_v2/${dateKey}/${field}`).set(value);
-            };
+            // Start Date: 2026-02-04 (Wednesday)
+            const START_DATE = new Date('2026-02-04'); 
+            const WEEK_DAYS = ['日','一','二','三','四','五','六'];
 
-            const resetData = () => {
-                if(confirm('確定要清空雲端所有記錄嗎？(此操作無法復原)')) {
-                    if(db) db.ref('milk_bank_v2').remove();
-                }
-            };
+            // Init
+            onMounted(async () => {
+                const stored = localStorage.getItem('milkBankV12');
+                if(stored) savedData.value = JSON.parse(stored);
+                
+                const [r1, r2] = await Promise.all([fetch(CSV_ROUTE).then(x=>x.text()), fetch(CSV_HOME).then(x=>x.text())]);
+                parseRoute(r1);
+                parseHome(r2);
+            });
 
-            // 2. Fetch CSVs
-            const parseNum = (v) => v ? parseFloat(v.toString().trim()) || 0 : 0;
-            
-            const fetchRouteCsv = () => {
-                fetch(routeCsvUrl).then(r=>r.text()).then(t => {
-                    const lines = t.trim().split('\n');
-                    const res = [];
-                    for(let i=1; i<lines.length; i++) {
-                        const row = lines[i].split(',');
-                        if(row.length<3) continue;
-                        const weekly = [];
-                        for(let d=0; d<7; d++) {
-                            const s = 3 + (d*5);
-                            const sum = [0,1,2,3,4].reduce((acc, off) => acc + parseNum(row[s+off]), 0);
-                            weekly.push(sum);
-                        }
-                        res.push({ weekly });
+            // CSV Parsers
+            const parseRoute = (txt) => {
+                // Logic: Sum bottles per day (0=Sun...6=Sat)
+                // Assuming standard CSV format from previous versions
+                const rows = txt.trim().split('\n').slice(1);
+                const res = [0,0,0,0,0,0,0];
+                rows.forEach(r => {
+                    const c = r.split(',');
+                    if(c.length<3) return;
+                    for(let d=0; d<7; d++) {
+                        const sIdx = d===0 ? 6 : d-1; // Shift for sheet index
+                        const base = 3 + (sIdx*5);
+                        let sum = 0;
+                        for(let k=0; k<5; k++) sum += (parseInt(c[base+k]?.replace(/２/g,'2'))||0);
+                        res[d] += sum;
                     }
-                    rawRouteData.value = res;
                 });
+                rawRoute.value = res;
             };
 
-            const fetchHomeCsv = () => {
-                fetch(homeCsvUrl).then(r=>r.text()).then(t => {
-                    const lines = t.trim().split('\n');
-                    const res = [];
-                    // Assume structure: UUID, Nickname, [Mon_DaXin, Mon_JinZhong], [Tue...], ...
-                    for(let i=1; i<lines.length; i++) {
-                        const row = lines[i].split(',');
-                        if(row.length<3) continue;
-                        const weekly = [];
-                        for(let d=0; d<5; d++) { // Mon-Fri (5 days)
-                            const s = 2 + (d*2); // Start col 2. Mon=2,3. Tue=4,5.
-                            // DaXin=0.95, JinZhong=0.5
-                            const daxin = parseNum(row[s]);
-                            const jinzhong = parseNum(row[s+1]);
-                            const dailyKg = (daxin * 0.95) + (jinzhong * 0.5);
-                            weekly.push(dailyKg);
+            const parseHome = (txt) => {
+                // Return structure: [ [list_of_mon], [list_of_tue]... ] (0=Mon, 4=Fri)
+                const rows = txt.trim().split('\n').slice(1);
+                const days = [[],[],[],[],[]]; // Mon-Fri
+                rows.forEach(r => {
+                    const c = r.split(',');
+                    if(c.length<2) return;
+                    const uuid = c[0];
+                    const name = c[1];
+                    for(let i=0; i<5; i++) {
+                        const big = parseInt(c[2 + i*2]) || 0;
+                        const small = parseInt(c[3 + i*2]) || 0;
+                        if(big>0 || small>0) {
+                            days[i].push({ uuid, name, big, small });
                         }
-                        // Map Mon-Fri to 0-6 (Sun-Sat) for consistency
-                        // CSV: 0=Mon, 1=Tue...
-                        // App: 0=Sun, 1=Mon...
-                        const fullWeek = [0, weekly[0], weekly[1], weekly[2], weekly[3], weekly[4], 0]; // Sun=0, Sat=0
-                        res.push({ weekly: fullWeek });
                     }
-                    rawHomeData.value = res;
                 });
+                rawHome.value = days;
             };
 
-            // 3. Logic
+            // Core Logic
             const milkBankDays = computed(() => {
-                const days = [];
-                const startDate = new Date(); startDate.setHours(0,0,0,0);
-                const endDate = new Date('2026-02-24'); endDate.setHours(0,0,0,0);
-                const diffDays = Math.ceil(Math.abs(endDate - startDate) / (86400000)) + 1;
-
+                const list = [];
+                // Generate 30 days from Feb 4
                 let runningStock = 0;
 
-                for(let i=0; i<diffDays; i++) {
-                    const dObj = new Date(startDate);
-                    dObj.setDate(startDate.getDate() + i);
+                for(let i=0; i<30; i++) {
+                    const dObj = new Date(START_DATE);
+                    dObj.setDate(START_DATE.getDate() + i);
                     
                     const y = dObj.getFullYear();
-                    const m = String(dObj.getMonth()+1).padStart(2,'0');
-                    const d = String(dObj.getDate()).padStart(2,'0');
+                    const m = dObj.getMonth()+1;
+                    const d = dObj.getDate();
                     const dateKey = `${y}-${m}-${d}`;
-                    const dayIdx = dObj.getDay();
-                    const dayName = weekDays[dayIdx];
+                    const dayIdx = dObj.getDay(); // 0=Sun
+
+                    // 1. Route Delivery (CSV1)
+                    let deliveryRoute = (rawRoute.value[dayIdx] || 0) * 0.18;
+                    // Pre-fill adjustment logic (Sat/Sun route on Fri) NOT auto-applied here to keep it simple,
+                    // but user can manually edit deliveryRoute via modal.
+
+                    // 2. Home Delivery (CSV2) - Calculated from Checklist Status
+                    let deliveryHome = 0;
+                    let homeStatus = { pending:0, partial:0, done:0, total:0 };
                     
-                    let lunarStr = '-';
-                    try {
-                        const lunar = Lunar.fromSolar(Solar.fromYmd(y, parseInt(m), parseInt(d)));
-                        lunarStr = lunar.getMonthInChinese() + "月" + lunar.getDayInChinese();
-                    } catch(e) {}
+                    // Default List (Mon=0 .. Fri=4)
+                    let defaultList = [];
+                    if(dayIdx >=1 && dayIdx <=5) defaultList = rawHome.value[dayIdx-1] || [];
+                    
+                    // Saved Status
+                    const savedDay = savedData.value[dateKey] || {};
+                    const checklist = savedDay.checklist || {}; // { uuid: 'done'/'split' }
+                    
+                    // If we have saved "Custom List" (e.g. Sunday loaded Monday's data), use it
+                    const activeList = savedDay.customList || defaultList;
 
-                    // 1. Standard Demand
-                    const sheetIdx = dayIdx === 0 ? 6 : dayIdx - 1;
-                    let demandBottles = 0;
-                    rawRouteData.value.forEach(row => {
-                        if(row.weekly[sheetIdx]) demandBottles += row.weekly[sheetIdx];
+                    activeList.forEach(item => {
+                        homeStatus.total++;
+                        const stat = checklist[item.uuid] || 'done'; // Default to done for calculation if not explicitly unchecked? 
+                        // Actually, for "Roll Call", default should be 'pending' visually, but for 'forecast', default is full.
+                        // Let's assume Forecast = Full unless marked 'split'.
+                        
+                        let factor = 1;
+                        if(stat === 'split') { factor = 0.5; homeStatus.partial++; } // Rough est. for split
+                        else if(stat === 'done') { homeStatus.done++; }
+                        else { homeStatus.pending++; } // If strictly tracking
+
+                        // Calc Volume
+                        if(stat !== 'skip') {
+                            deliveryHome += ((item.big*0.95) + (item.small*0.5)) * factor;
+                        }
                     });
-                    const demand = demandBottles * 0.18;
 
-                    // 2. Home Delivery Demand
-                    let homeKg = 0;
-                    rawHomeData.value.forEach(row => {
-                         if(row.weekly[dayIdx]) homeKg += row.weekly[dayIdx];
-                    });
+                    // Overrides
+                    const harvestAM = savedDay.harvestAM ?? 13;
+                    const harvestPM = savedDay.harvestPM ?? 15;
+                    if(savedDay.deliveryRoute !== undefined) deliveryRoute = savedDay.deliveryRoute;
+                    
+                    // New Rows
+                    const flash = savedDay.flash || { vol:0, loc:'' };
+                    const process = savedDay.process || { vol:0, desc:'' };
 
-                    // 3. DB Data
-                    const dayData = savedData.value[dateKey] || {};
-                    const harvestAM = dayData.harvestAM !== undefined ? dayData.harvestAM : defaults.harvestAM;
-                    const harvestPM = dayData.harvestPM !== undefined ? dayData.harvestPM : defaults.harvestPM;
-                    const adhoc1 = dayData.adhoc1 || 0;
-                    const adhoc2 = dayData.adhoc2 || 0;
-                    const adhoc3 = dayData.adhoc3 || 0;
-
+                    // Stock
                     let startStock = runningStock;
-                    if(dayData.inventory !== undefined) {
-                        startStock = dayData.inventory;
-                    } else if (i === 0 && dayData.inventory === undefined) {
-                        startStock = 10; 
-                    }
+                    if(i===0 && savedDay.inventory===undefined) startStock = 10;
+                    if(savedDay.inventory !== undefined) startStock = savedDay.inventory;
 
-                    const endStock = startStock + harvestAM + harvestPM - demand - homeKg + adhoc1 + adhoc2 + adhoc3;
+                    const endStock = startStock + harvestAM + harvestPM - deliveryRoute - deliveryHome - flash.vol - process.vol;
                     runningStock = endStock;
 
-                    days.push({
-                        dateKey, dateStr: `${m}/${d}`, dayName, lunarStr,
-                        isWeekend: dayIdx === 0 || dayIdx === 6,
-                        startStock, harvestAM, harvestPM, demand, homeDelivery: homeKg,
-                        adhoc1, adhoc2, adhoc3, endStock,
+                    // Lunar
+                    let lunar = '';
+                    try { const l = Lunar.fromSolar(Solar.fromYmd(y,m,d)); lunar = l.getDayInChinese(); } catch(e){}
+
+                    list.push({
+                        key: dateKey, dateStr: `${m}/${d}`, weekDay: WEEK_DAYS[dayIdx], isWeekend: dayIdx===0||dayIdx===6,
+                        lunar,
+                        startStock, harvestAM, harvestPM, deliveryRoute, deliveryHome,
+                        flash, process, endStock,
+                        homeStatus, 
+                        // Raw data for modal
+                        rawHomeList: activeList,
                         isManual: {
-                            inventory: dayData.inventory !== undefined,
-                            harvestAM: dayData.harvestAM !== undefined,
-                            harvestPM: dayData.harvestPM !== undefined,
-                            adhoc1: dayData.adhoc1 !== undefined && dayData.adhoc1 !== 0,
+                            inventory: savedDay.inventory!==undefined,
+                            harvestAM: savedDay.harvestAM!==undefined,
+                            deliveryRoute: savedDay.deliveryRoute!==undefined
                         }
                     });
                 }
-                return days;
+                return list;
             });
 
             const todayEndStock = computed(() => milkBankDays.value[0]?.endStock || 0);
-            const todayDemand = computed(() => milkBankDays.value[0]?.demand || 0);
-            const todayHomeDelivery = computed(() => milkBankDays.value[0]?.homeDelivery || 0);
+            const todayStr = computed(() => milkBankDays.value[0]?.dateStr || '');
 
-            // 4. Interaction
-            const openInputModal = (field, day) => {
-                inputModal.value.field = field;
-                inputModal.value.dateKey = day.dateKey;
-                inputModal.value.show = true;
-                inputModal.value.dateLabel = `${day.dateStr} ${day.dayName}`;
-                inputModal.value.lunarLabel = `農曆 ${day.lunarStr}`;
+            // Modal Logic
+            const openModal = (type, day) => {
+                modal.value.show = true;
+                modal.value.type = type;
+                modal.value.key = day.key;
+                modal.value.title = getTitle(type);
+                modal.value.dateLabel = `${day.dateStr} ${day.weekDay}`;
                 
-                // Titles
-                const titles = {
-                    inventory: ['期初盤點', '07:00 實際庫存'],
-                    harvestAM: ['晨間收乳', '08:00 實際產出'],
-                    harvestPM: ['晚間收乳', '20:00 實際產出'],
-                    adhoc1: ['團購出貨 1', '輸入負數扣庫存'],
-                    adhoc2: ['團購出貨 2', '輸入負數扣庫存'],
-                    adhoc3: ['團購出貨 3', '輸入負數扣庫存']
-                };
-                inputModal.value.title = titles[field][0];
-                inputModal.value.subtitle = titles[field][1];
-                inputModal.value.value = day[field];
+                // Load values
+                if(type === 'flash') {
+                    modal.value.val = day.flash.vol;
+                    modal.value.text = day.flash.loc;
+                } else if (type === 'process') {
+                    // Reverse engineer or store separately? Storing separately is better but for now let's reset
+                    modal.value.pSmall = 0; modal.value.pBig = 0;
+                } else {
+                    modal.value.val = day[type];
+                }
             };
 
-            const openQuickAction = (field) => {
-                if(milkBankDays.value.length > 0) openInputModal(field, milkBankDays.value[0]);
+            const openChecklist = (day) => {
+                modal.value.show = true;
+                modal.value.type = 'checklist';
+                modal.value.key = day.key;
+                modal.value.dateLabel = day.dateStr;
+                
+                // Deep copy list and merge status
+                const saved = (savedData.value[day.key] || {}).checklist || {};
+                modal.value.list = day.rawHomeList.map(i => ({
+                    ...i,
+                    status: saved[i.uuid] || 'done' // Default to done in view
+                }));
+                
+                modal.value.isSunday = new Date(day.key).getDay() === 0;
+                recalcChecklistTotal();
             };
 
-            const adjustValue = (d) => inputModal.value.value = parseFloat((inputModal.value + d).toFixed(2));
-
-            const confirmInput = () => {
-                const { dateKey, field, value } = inputModal.value;
-                saveToCloud(dateKey, field, value);
-                inputModal.value.show = false;
+            const loadMondayData = () => {
+                // Load Monday (Day Index 0 in rawHome)
+                const monData = rawHome.value[0] || [];
+                // Replace current list
+                modal.value.list = monData.map(i => ({...i, status: 'done'}));
+                // Mark this day as having a custom list
+                if(!savedData.value[modal.value.key]) savedData.value[modal.value.key] = {};
+                savedData.value[modal.value.key].customList = monData;
+                recalcChecklistTotal();
             };
 
-            onMounted(() => {
-                initFirebase();
-                fetchRouteCsv();
-                fetchHomeCsv();
-            });
-
-            return {
-                milkBankDays, todayEndStock, todayDemand, todayHomeDelivery,
-                inputModal, firebaseConnected,
-                openInputModal, openQuickAction, adjustValue, confirmInput, resetData
+            const toggleStatus = (idx, status) => {
+                const item = modal.value.list[idx];
+                item.status = (item.status === status) ? 'skip' : status; // toggle
+                recalcChecklistTotal();
             };
+
+            const recalcChecklistTotal = () => {
+                modal.value.computedTotal = modal.value.list.reduce((acc, item) => {
+                    if(item.status === 'skip') return acc;
+                    const vol = (item.big*0.95) + (item.small*0.5);
+                    return acc + (item.status === 'split' ? vol*0.5 : vol);
+                }, 0);
+            };
+
+            const saveChecklist = () => {
+                const map = {};
+                modal.value.list.forEach(i => map[i.uuid] = i.status);
+                
+                if(!savedData.value[modal.value.key]) savedData.value[modal.value.key] = {};
+                savedData.value[modal.value.key].checklist = map;
+                
+                saveData();
+                closeModal();
+            };
+
+            const addProcess = (size) => {
+                if(size === 'small') modal.value.pSmall++;
+                else modal.value.pBig++;
+            };
+
+            const saveModal = () => {
+                const { key, type, val, text, pSmall, pBig } = modal.value;
+                if(!savedData.value[key]) savedData.value[key] = {};
+                
+                if(type === 'flash') {
+                    savedData.value[key].flash = { vol: val, loc: text };
+                } else if(type === 'process') {
+                    const totalVol = (pSmall*3.7) + (pBig*1.3);
+                    const desc = [];
+                    if(pSmall>0) desc.push(`小x${pSmall}`);
+                    if(pBig>0) desc.push(`大x${pBig}`);
+                    savedData.value[key].process = { vol: totalVol, desc: desc.join(',') };
+                } else {
+                    savedData.value[key][type] = val;
+                }
+                saveData();
+                closeModal();
+            };
+
+            const getTitle = (t) => ({
+                inventory:'期初庫存', harvestAM:'晨間收乳', deliveryRoute:'晨間配送', 
+                harvestPM:'晚間收乳', flash:'快閃活動備貨', process:'加工品製作'
+            }[t] || t);
+
+            const adj = (d) => modal.value.val = parseFloat((modal.value.val+d).toFixed(1));
+            const closeModal = () => modal.value.show = false;
+            const saveData = () => localStorage.setItem('milkBankV12', JSON.stringify(savedData.value));
+
+            return { milkBankDays, todayEndStock, todayStr, viewMode, modal, openModal, closeModal, adj, saveModal, openChecklist, toggleStatus, saveChecklist, addProcess, loadMondayData };
         }
     }).mount('#app');
 </script>
