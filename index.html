@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>五寮尖 V18.1 實戰修正版</title>
+    <title>五寮尖 V18.5 調控備註版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -13,7 +13,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
 
     <style>
-        /* 100dvh 鎖定 */
         html, body { 
             height: 100dvh; margin: 0; padding: 0; overflow: hidden;
             background-color: #f8fafc; font-family: 'Noto Sans TC', sans-serif; 
@@ -22,13 +21,21 @@
         [v-cloak] { display: none; }
         #app { height: 100%; display: flex; flex-direction: column; }
 
-        /* 表格結構 */
+        /* 表格結構 - 修正 overflow-y 為 auto 以支援滑鼠滾輪 */
         .table-wrapper {
-            flex: 1; overflow-x: auto; overflow-y: hidden;
+            flex: 1; overflow-x: auto; overflow-y: auto; /* 開啟垂直捲動 */
             display: flex; flex-direction: column; scroll-snap-type: x mandatory;
             background: white;
+            scrollbar-width: thin; /* Firefox */
         }
-        .milk-table { height: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+        
+        /* 滾動條樣式優化 */
+        .table-wrapper::-webkit-scrollbar { width: 8px; height: 8px; }
+        .table-wrapper::-webkit-scrollbar-track { background: #f1f5f9; }
+        .table-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .milk-table { border-collapse: separate; border-spacing: 0; table-layout: fixed; }
         .milk-table th, .milk-table td { 
             padding: 2px 4px; text-align: center; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
             white-space: nowrap; font-size: 13px; position: relative; box-sizing: border-box;
@@ -42,14 +49,13 @@
             border-right: 2px solid #e2e8f0; text-align: left; padding-left: 12px; 
             color: #64748b; font-weight: 700;
         }
-        .milk-table thead th { position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #e2e8f0; height: 65px; background: white; }
-        .milk-table thead th:first-child { z-index: 30; }
+        .milk-table thead th { position: sticky; top: 0; z-index: 30; border-bottom: 2px solid #e2e8f0; height: 65px; background: white; }
+        .milk-table thead th:first-child { z-index: 40; }
 
-        /* 今日高光樣式 */
+        /* 樣式 */
         .is-today { background-color: #eff6ff !important; border-left: 2px solid #3b82f6; border-right: 2px solid #3b82f6; }
         .is-today-header { background-color: #dbeafe !important; border-top: 4px solid #2563eb !important; }
 
-        /* 視覺樣式 */
         .row-icon { width: 18px; text-align: center; display: inline-block; margin-right: 4px; opacity: 0.6; }
         .time-label { display: block; font-size: 10px; color: #94a3b8; font-weight: 500; margin-bottom: 0px; }
         .item-label { font-size: 12px; color: #334155; font-weight: 700; }
@@ -58,15 +64,33 @@
         .val-plus { color: #059669; background: #ecfdf5; padding: 2px 6px; border-radius: 6px; }
         .val-minus { color: #2563eb; }
         .val-prep { color: #dc2626; font-weight: 700; } 
-        .val-balance { font-size: 18px; font-weight: 900; color: #1e293b; }
+        .val-balance { font-size: 20px; font-weight: 900; color: #1e293b; }
         .val-mid-balance { color: #64748b; font-weight: 700; font-size: 14px; background: #f1f5f9; padding: 2px 8px; border-radius: 12px; }
+        
+        /* 覆蓋值樣式 */
+        .val-override { text-decoration: underline; text-decoration-color: #fca5a5; text-decoration-thickness: 2px; color: #b91c1c; }
 
-        /* 日期標籤樣式 (高光) */
+        /* 模擬行樣式 */
+        .sim-row td { background-color: #f0f9ff; vertical-align: top; padding-top: 6px; }
+        .sim-val { font-size: 11px; font-weight: bold; color: #0891b2; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .sim-off { text-decoration: line-through; opacity: 0.4; color: #94a3b8; }
+
+        /* Tag & Badges */
         .tag-badge { 
             display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; 
             margin-top: 2px; font-weight: bold; color: white;
         }
-        /* 預設顏色類別 */
+        .adhoc-badge {
+            background-color: #a855f7; color: white; font-size: 9px; padding: 2px 6px; 
+            border-radius: 10px; font-weight: bold; margin-top: 2px; display: inline-block;
+            box-shadow: 0 1px 2px rgba(168, 85, 247, 0.3);
+        }
+        .sim-badge {
+            background-color: #0ea5e9; color: white; font-size: 9px; padding: 1px 6px; 
+            border-radius: 10px; font-weight: bold; margin-top: 2px; display: inline-block;
+            box-shadow: 0 1px 2px rgba(14, 165, 233, 0.3); line-height: 1.4;
+        }
+
         .hl-blue { background-color: #eff6ff; border-top: 3px solid #3b82f6; }
         .hl-red { background-color: #fef2f2; border-top: 3px solid #ef4444; }
         .hl-green { background-color: #f0fdf4; border-top: 3px solid #22c55e; }
@@ -82,6 +106,10 @@
         }
         .drawer-body.active { transform: translateY(0); }
 
+        /* Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+        
         .toast {
             position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-100px);
             background: #1e293b; color: white; padding: 10px 20px; border-radius: 30px;
@@ -102,9 +130,16 @@
                 {{ todayEndStock.toFixed(1) }} <span class="text-sm text-slate-300">L</span>
             </div>
         </div>
-        <button @click="sidebarOpen=true" class="w-9 h-9 bg-slate-50 rounded-full text-slate-500 flex items-center justify-center active:bg-slate-200">
-            <i class="fas fa-bars"></i>
-        </button>
+        <div class="flex gap-2">
+            <button @click="showHistory = !showHistory" class="px-3 h-9 rounded-full text-xs font-bold flex items-center gap-1 border transition-colors"
+                :class="showHistory ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-blue-50 text-blue-600 border-blue-200'">
+                <i class="fas" :class="showHistory ? 'fa-eye' : 'fa-eye-slash'"></i>
+                {{ showHistory ? '顯示全部' : '只看近期' }}
+            </button>
+            <button @click="sidebarOpen=true" class="w-9 h-9 bg-slate-50 rounded-full text-slate-500 flex items-center justify-center active:bg-slate-200">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
     </header>
 
     <div class="table-wrapper">
@@ -116,7 +151,7 @@
                             <span class="text-xs text-slate-400 font-bold">項目 \ 日期</span>
                         </div>
                     </th>
-                    <th v-for="d in days" :key="d.key" class="col-day cursor-pointer" 
+                    <th v-for="d in filteredDays" :key="d.key" class="col-day cursor-pointer" 
                         :class="[d.colorClass, {'bg-slate-50': !d.colorClass && d.isWeekend, 'is-today-header': d.isToday}]"
                         @click="openDateSettings(d)">
                         <div class="flex flex-col items-center justify-center">
@@ -136,7 +171,7 @@
                         <span class="time-label">07:00</span>
                         <i class="fas fa-cube row-icon text-slate-400"></i><span class="item-label">期初庫存</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('inventory', d)" class="num-font text-slate-400 cursor-pointer" :class="{'is-today': d.isToday}">
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('inventory', d)" class="num-font text-slate-400 cursor-pointer" :class="{'is-today': d.isToday}">
                         {{ d.startStock.toFixed(1) }}
                     </td>
                 </tr>
@@ -146,7 +181,7 @@
                         <span class="time-label">08:00</span>
                         <i class="fas fa-tint row-icon text-emerald-500"></i><span class="item-label">晨間收乳</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('harvestAM', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('harvestAM', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
                         <span class="num-font val-plus">+{{ d.harvestAM }}</span>
                     </td>
                 </tr>
@@ -156,8 +191,10 @@
                         <span class="time-label">10:00</span>
                         <i class="fas fa-users row-icon text-blue-500"></i><span class="item-label">家庭宅配</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('checklist', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
-                        <span v-if="d.deliveryHome > 0" class="num-font val-minus">-{{ d.deliveryHome.toFixed(1) }}</span>
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('deliveryHome', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
+                        <span v-if="d.deliveryHome > 0" class="num-font val-minus" :class="{'val-override': d.isHomeOverridden}">
+                            -{{ d.deliveryHome.toFixed(1) }}
+                        </span>
                         <span v-else class="text-slate-200">-</span>
                     </td>
                 </tr>
@@ -167,7 +204,7 @@
                         <span class="time-label">12:00</span>
                         <i class="fas fa-clipboard-check row-icon text-slate-500"></i><span class="item-label text-slate-600">午間盤點</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" class="text-center" :class="{'is-today': d.isToday}">
+                    <td v-for="d in filteredDays" :key="d.key" class="text-center" :class="{'is-today': d.isToday}">
                         <span class="num-font val-mid-balance">{{ d.noonStock.toFixed(1) }}</span>
                     </td>
                 </tr>
@@ -177,8 +214,10 @@
                         <span class="time-label">13:00</span>
                         <i class="fas fa-blender row-icon text-amber-500"></i><span class="item-label">加工/快閃</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('process', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
-                        <div v-if="d.process.vol > 0" class="text-amber-600 font-bold text-xs">-{{ d.process.vol.toFixed(1) }}</div>
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('process', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
+                        <div v-if="d.process.vol > 0" class="text-amber-600 font-bold text-xs">
+                             -{{ d.process.vol.toFixed(1) }}
+                        </div>
                         <div v-if="d.flash.vol > 0" class="text-pink-500 font-bold text-xs">-{{ d.flash.vol }}</div>
                         <span v-if="d.process.vol===0 && d.flash.vol===0" class="text-slate-200">-</span>
                     </td>
@@ -188,11 +227,33 @@
                         <span class="time-label">15:00</span>
                         <i class="fas fa-plus-circle row-icon text-purple-500"></i><span class="item-label">臨時/團購</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('adhoc', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
-                        <div v-if="d.adhoc.total > 0 || d.group.vol > 0" class="text-xs font-bold text-purple-600">
-                            -{{ (d.adhoc.total + d.group.vol).toFixed(1) }}
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('adhoc', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
+                        <div v-if="d.adhoc.active && (d.adhoc.total > 0 || d.group.vol > 0)">
+                             <div class="text-xs font-bold text-purple-600 mb-1">-{{ (d.adhoc.total + d.group.vol).toFixed(1) }}</div>
+                             <div v-if="d.adhoc.desc" class="adhoc-badge">
+                                 {{ d.adhoc.desc }}
+                             </div>
                         </div>
                         <span v-else class="text-slate-200">-</span>
+                    </td>
+                </tr>
+
+                <tr v-for="(simName, idx) in ['調控 A', '調控 B', '調控 C', '調控 D']" :key="'sim'+idx" class="sim-row" style="height: 60px;">
+                    <td>
+                        <span class="time-label" v-if="idx===0">預測調節</span>
+                        <i class="fas fa-sliders-h row-icon text-cyan-600"></i><span class="item-label text-cyan-700">{{ simName }}</span>
+                    </td>
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('sim', d, idx)" class="cursor-pointer" :class="{'is-today': d.isToday}">
+                        <div v-if="d.sims[idx] && d.sims[idx].val > 0" class="sim-val flex-col" :class="{'sim-off': !d.sims[idx].active}">
+                            <div>
+                                <span v-if="d.sims[idx].active">-</span>{{ d.sims[idx].val }}
+                                <i v-if="!d.sims[idx].active" class="fas fa-ban text-[8px]"></i>
+                            </div>
+                            <div v-if="d.sims[idx].desc" class="sim-badge">
+                                {{ d.sims[idx].desc }}
+                            </div>
+                        </div>
+                        <span v-else class="text-slate-200 text-[10px]">-</span>
                     </td>
                 </tr>
 
@@ -201,7 +262,7 @@
                         <span class="time-label">19:00</span>
                         <i class="fas fa-box-open row-icon text-red-500"></i><span class="item-label">隔日晨配</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('routePrep', d)" class="cursor-pointer bg-red-50/30" :class="{'is-today': d.isToday}">
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('routePrep', d)" class="cursor-pointer bg-red-50/30" :class="{'is-today': d.isToday}">
                         <div v-if="d.routePrep > 0">
                             <span class="num-font val-prep">-{{ d.routePrep.toFixed(1) }}</span>
                             <div v-if="d.weekDay === '五'" class="text-[9px] text-red-400 font-normal transform scale-90 origin-center mt-0.5">
@@ -217,24 +278,38 @@
                         <span class="time-label">20:00</span>
                         <i class="fas fa-moon row-icon text-indigo-500"></i><span class="item-label">晚間收乳</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" @click="edit('harvestPM', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
+                    <td v-for="d in filteredDays" :key="d.key" @click="edit('harvestPM', d)" class="cursor-pointer" :class="{'is-today': d.isToday}">
                         <span class="num-font val-plus">+{{ d.harvestPM }}</span>
                     </td>
                 </tr>
 
-                <tr style="height: 60px;">
+                <tr style="height: 120px;">
                     <td style="background-color: #f8fafc;">
                         <span class="time-label">22:00</span>
                         <i class="fas fa-flag row-icon text-slate-800"></i><span class="item-label">本日結餘</span>
                     </td>
-                    <td v-for="d in days" :key="d.key" class="num-font val-balance" :class="{'is-today': d.isToday}">
-                        {{ d.endStock.toFixed(1) }}
+                    <td v-for="d in filteredDays" :key="d.key" class="align-top pt-2" :class="{'is-today': d.isToday}">
+                        <div class="num-font val-balance leading-none mb-2 border-b border-slate-200 pb-1">{{ d.endStock.toFixed(1) }}</div>
+                        <div class="flex flex-col gap-1 text-[11px] font-bold text-slate-500 items-center">
+                            <div v-if="d.buckets.b23 > 0" class="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md w-full max-w-[80px]">
+                                🐱 x {{ d.buckets.b23 }}
+                            </div>
+                            <div v-if="d.buckets.b30 > 0" class="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md w-full max-w-[80px]">
+                                📦 x {{ d.buckets.b30 }}
+                            </div>
+                            <div v-if="d.buckets.left > 0" class="text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md w-full max-w-[80px]">
+                                💧 {{ d.buckets.left.toFixed(1) }}
+                            </div>
+                             <div class="mt-1 text-slate-800 border-t border-slate-300 w-full pt-1">
+                                合計 <span class="text-lg font-black text-slate-900">{{ d.buckets.total }}</span> 桶
+                            </div>
+                        </div>
                     </td>
                 </tr>
 
                 <tr style="height: 45px; background: #f8fafc;">
                     <td class="text-xs text-slate-400 pl-3">總瓶數參考</td>
-                    <td v-for="d in days" :key="d.key" class="text-[10px] text-center text-slate-500" :class="{'is-today': d.isToday}">
+                    <td v-for="d in filteredDays" :key="d.key" class="text-[10px] text-center text-slate-500" :class="{'is-today': d.isToday}">
                         <div v-if="d.bottleInfo.big>0 || d.bottleInfo.small>0">
                             大:{{d.bottleInfo.big}} 小:{{d.bottleInfo.small}}
                         </div>
@@ -254,7 +329,7 @@
             <div class="mb-6">
                 <label class="text-xs font-bold text-slate-400 mb-2 block">高光標記顏色</label>
                 <div class="flex justify-between gap-2">
-                    <button v-for="c in colorOptions" :key="c.val" @click="setDateColor(c.val)"
+                    <button v-for="c in colorOptions" :key="c.val" @click="setDateColor(c.val)" 
                         class="h-12 flex-1 rounded-xl border-2 transition-all"
                         :class="[c.bg, c.border, drawer.val === c.val ? 'ring-2 ring-slate-400 scale-105' : 'opacity-70']">
                     </button>
@@ -267,7 +342,7 @@
             <div>
                 <label class="text-xs font-bold text-slate-400 mb-2 block">主要任務標籤</label>
                 <div class="grid grid-cols-3 gap-3">
-                    <button v-for="t in taskOptions" :key="t" @click="setDateTask(t)"
+                    <button v-for="t in taskOptions" :key="t" @click="setDateTask(t)" 
                         class="py-3 rounded-xl border font-bold text-sm transition-colors"
                         :class="drawer.text === t ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'">
                         {{ t }}
@@ -323,26 +398,78 @@
                     <div class="grid grid-cols-2 gap-4">
                         <button @click="drawer.pSmall++" class="bg-amber-50 p-6 rounded-3xl active:bg-amber-100"><span class="block text-sm font-bold text-amber-800">小 (3.7L)</span><span class="block text-4xl font-black text-amber-600">{{ drawer.pSmall }}</span></button>
                         <button @click="drawer.pBig++" class="bg-orange-50 p-6 rounded-3xl active:bg-orange-100"><span class="block text-sm font-bold text-orange-800">大 (1.3L)</span><span class="block text-4xl font-black text-orange-600">{{ drawer.pBig }}</span></button>
+                        <div class="col-span-2 flex justify-center gap-4 text-sm text-slate-400 font-bold">
+                            <span v-if="drawer.pSmall>0" @click="drawer.pSmall--" class="cursor-pointer hover:text-red-500"><i class="fas fa-minus"></i> 減少小</span>
+                            <span v-if="drawer.pBig>0" @click="drawer.pBig--" class="cursor-pointer hover:text-red-500"><i class="fas fa-minus"></i> 減少大</span>
+                        </div>
                     </div>
                     <div class="text-center text-xl font-bold">合計: {{ ((drawer.pSmall*3.7)+(drawer.pBig*1.3)).toFixed(1) }} L</div>
                     <button @click="drawer.pSmall=0;drawer.pBig=0" class="w-full py-2 bg-slate-100 text-slate-400 text-xs font-bold rounded-lg hover:bg-red-50 hover:text-red-500 transition">歸零重置</button>
                 </div>
 
-                 <div v-if="drawer.type === 'checklist'" class="space-y-2 max-h-[40vh] overflow-y-auto">
-                    <div v-for="(item, idx) in drawer.list" :key="idx" class="flex justify-between items-center p-3 border-b border-slate-50">
-                        <span class="font-bold text-slate-700">{{ item.name }} <span class="text-xs text-slate-400">{{ item.big }}大 {{ item.small }}小</span></span>
-                        <button @click="item.status=item.status==='done'?'skip':'done'" class="w-8 h-8 rounded-full border flex items-center justify-center" :class="item.status==='done'?'bg-blue-500 text-white':'text-slate-300'"><i class="fas fa-check"></i></button>
+                <div v-if="drawer.type === 'deliveryHome'" class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-xl flex justify-between items-center">
+                        <span class="text-blue-800 font-bold text-sm">CSV 建議值 (參考)</span>
+                        <span class="text-2xl font-black text-blue-600">{{ drawer.csvVal.toFixed(1) }}</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1">
+                            <label class="text-xs text-slate-400 font-bold block mb-2">強制設定總出貨量</label>
+                            <input v-model.number="drawer.val" type="number" step="0.1" class="w-full bg-slate-100 p-4 rounded-xl text-3xl font-black text-center focus:ring-2 ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="drawer.val = drawer.csvVal" class="flex-1 py-3 bg-blue-100 text-blue-700 font-bold rounded-xl text-sm">帶入建議值</button>
+                        <button @click="drawer.val = null" class="flex-1 py-3 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm">清除強制設定</button>
+                    </div>
+                    
+                    <div class="mt-4 border-t pt-4">
+                         <h4 class="text-xs font-bold text-slate-400 mb-2">明細參考</h4>
+                         <div class="max-h-[20vh] overflow-y-auto space-y-1">
+                             <div v-for="(item, idx) in drawer.list" :key="idx" class="flex justify-between text-sm py-1 border-b border-slate-50">
+                                 <span class="text-slate-600">{{ item.name }}</span>
+                                 <span class="font-mono text-slate-400">{{ item.big }}大 {{ item.small }}小</span>
+                             </div>
+                             <div v-if="drawer.list.length===0" class="text-center text-slate-300 text-sm py-2">無資料</div>
+                         </div>
                     </div>
                 </div>
 
-                 <div v-if="drawer.type === 'adhoc'" class="space-y-4">
+                <div v-if="drawer.type === 'adhoc'" class="space-y-4">
+                     <div class="flex items-center justify-between bg-purple-50 p-4 rounded-2xl">
+                        <span class="font-bold text-purple-800">啟用此筆調節</span>
+                        <div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+                            <input v-model="drawer.adActive" type="checkbox" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300"/>
+                            <label class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                        </div>
+                    </div>
                     <div class="flex gap-4">
                         <div class="flex-1 bg-purple-50 p-4 rounded-2xl text-center"><span class="text-xs text-purple-800">大 (0.95)</span><div class="flex justify-center gap-2 mt-2"><button @click="drawer.adBig--" class="text-purple-400">-</button><span class="text-2xl font-black text-purple-800">{{drawer.adBig}}</span><button @click="drawer.adBig++" class="text-purple-400">+</button></div></div>
                          <div class="flex-1 bg-purple-50 p-4 rounded-2xl text-center"><span class="text-xs text-purple-800">小 (0.5)</span><div class="flex justify-center gap-2 mt-2"><button @click="drawer.adSmall--" class="text-purple-400">-</button><span class="text-2xl font-black text-purple-800">{{drawer.adSmall}}</span><button @click="drawer.adSmall++" class="text-purple-400">+</button></div></div>
                     </div>
-                    <input v-model.number="drawer.adCustom" type="number" placeholder="團購/特殊 (L)" class="w-full bg-slate-50 p-3 rounded-xl font-bold">
+                    <input v-model="drawer.adDesc" type="text" placeholder="輸入名稱 (例: 團購/試喝)" class="w-full bg-slate-50 p-3 rounded-xl font-bold border border-slate-200">
+                    <input v-model.number="drawer.adCustom" type="number" placeholder="其他數量 (L)" class="w-full bg-slate-50 p-3 rounded-xl font-bold">
                     <button @click="drawer.adBig=0;drawer.adSmall=0;drawer.adCustom=0" class="w-full py-2 bg-slate-100 text-slate-400 text-xs font-bold rounded-lg hover:bg-red-50 hover:text-red-500 transition">歸零重置</button>
                  </div>
+
+                 <div v-if="drawer.type === 'sim'" class="space-y-6">
+                    <div class="flex items-center justify-between bg-cyan-50 p-4 rounded-2xl">
+                        <span class="font-bold text-cyan-800">啟用此筆調節</span>
+                        <div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+                            <input v-model="drawer.simActive" type="checkbox" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300"/>
+                            <label class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 font-bold block mb-2">預計消耗量 (L)</label>
+                        <input v-model.number="drawer.val" type="number" class="w-full bg-slate-100 p-4 rounded-xl text-4xl font-black text-center text-cyan-700 focus:ring-2 ring-cyan-500 outline-none">
+                    </div>
+                    <input v-model="drawer.simDesc" type="text" placeholder="備註 (例: 預借/補回/測試)" class="w-full bg-slate-50 p-3 rounded-xl font-bold border border-slate-200">
+                    <p class="text-xs text-slate-400 text-center">
+                        開啟後，將從庫存中扣除此數值。<br>適用於 2/13-3/05 的預測性調整。
+                    </p>
+                 </div>
+
             </div>
         </div>
     </div>
@@ -356,7 +483,6 @@
     const CSV_ROUTE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=216467280&single=true&output=csv';
     const CSV_HOME = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=59343971&single=true&output=csv';
 
-    // 無條件進位到小數點後1位 Helper Function
     const ceil10 = (n) => Math.ceil(n * 10) / 10;
 
     createApp({
@@ -366,7 +492,9 @@
             const rawRoute = ref([]); const rawHome = ref([]); const savedData = ref({});
             const drawer = ref({ show:false, mode:'', type:'', key:'', val:0 });
             const toast = ref({ show:false, msg:'' });
+            const showHistory = ref(false); // Default hidden
             const START = new Date('2026-02-04');
+            const FILTER_DATE = '2026-02-13'; // Cutoff date
             const WEEK = ['日','一','二','三','四','五','六'];
             const todayStr = new Date().toISOString().split('T')[0];
             
@@ -385,12 +513,25 @@
                 db.on('value', s => savedData.value = s.val()?.days || {});
             });
 
+            const calculateBuckets = (stock) => {
+                if(stock <= 0) return { b23:0, b30:0, left:0, total:0 };
+                let remain = stock;
+                let b23 = Math.floor(remain / 23);
+                if(b23 > 4) b23 = 4;
+                remain -= b23 * 23;
+                let b30 = Math.floor(remain / 30);
+                if(b30 > 2) b30 = 2;
+                remain -= b30 * 30;
+                let total = b23 + b30;
+                if(remain > 0) total += 1;
+                return { b23, b30, left: remain, total };
+            };
+
             const days = computed(() => {
                 let stock = 0; const res = [];
                 for(let i=0; i<30; i++) {
                     const d = new Date(START); d.setDate(START.getDate()+i);
                     const y=d.getFullYear(), m=d.getMonth()+1, dd=d.getDate();
-                    // 修正日期格式補0，確保與系統日期字串一致 (YYYY-MM-DD)
                     const mStr = m < 10 ? '0'+m : m;
                     const dStr = dd < 10 ? '0'+dd : dd;
                     const key = `${y}-${mStr}-${dStr}`; 
@@ -398,26 +539,31 @@
                     const wIdx = d.getDay();
                     const s = savedData.value[key] || {};
                     
-                    // Home Delivery
-                    let home = 0; let bInfo = { big:0, small:0 };
+                    let csvHome = 0; let bInfo = { big:0, small:0 };
                     const defList = (wIdx>=1 && wIdx<=5) ? (rawHome.value[wIdx-1]||[]) : [];
-                    const actList = s.customList || defList;
-                    const chk = s.checklist || {};
+                    const actList = s.customList || defList; 
                     actList.forEach(it => {
-                        const st = chk[it.uuid] || 'done';
-                        if(st!=='skip') {
-                             home += ((it.big*0.95)+(it.small*0.5)) * (st==='split'?0.5:1);
-                             bInfo.big+=it.big; bInfo.small+=it.small;
-                        }
+                         csvHome += ((it.big*0.95)+(it.small*0.5));
+                         bInfo.big+=it.big; bInfo.small+=it.small;
                     });
+                    const finalHome = (s.deliveryHomeOverride !== undefined && s.deliveryHomeOverride !== null) 
+                                      ? s.deliveryHomeOverride : csvHome;
 
-                    // Inputs
                     const hAM = s.harvestAM ?? 13;
                     const hPM = s.harvestPM ?? 15;
                     const flash = s.flash || { vol:0, loc:'' };
-                    const process = s.process || { vol:0 };
-                    const adhoc = s.adhoc || { total:0, big:0, small:0, custom:0 };
+                    const process = s.process || { vol:0, mantouBig:0, mantouSmall:0 };
+                    
+                    const adhoc = s.adhoc || { total:0, big:0, small:0, custom:0, active:false, desc:'' };
+                    const adhocVol = adhoc.active ? adhoc.total : 0;
+                    
                     const group = s.group || { vol:0 };
+                    
+                    // Sims: Add desc field
+                    const sims = [0,1,2,3].map(idx => {
+                        return (s.sims && s.sims[idx]) ? s.sims[idx] : { val:0, active:false, desc:'' };
+                    });
+                    const simTotal = sims.reduce((acc, cur) => acc + (cur.active ? cur.val : 0), 0);
 
                     const nextDayIdx = (wIdx + 1) % 7;
                     let defaultPrep = (rawRoute.value[nextDayIdx] || 0) * 0.18;
@@ -426,24 +572,24 @@
                     if(i===0 && s.inventory===undefined) stock = 10;
                     if(s.inventory !== undefined) stock = s.inventory;
                     
-                    // Noon Calc (Apply Rounding Up)
-                    const noon = ceil10(stock + hAM - home);
-
-                    // End Calc (Apply Rounding Up)
-                    const end = ceil10(stock + hAM + hPM - home - flash.vol - process.vol - adhoc.total - group.vol - rPrep);
+                    const noon = ceil10(stock + hAM - finalHome);
+                    const end = ceil10(stock + hAM + hPM - finalHome - flash.vol - process.vol - adhocVol - group.vol - rPrep - simTotal);
                     stock = end;
 
-                    // Badges
                     const colorMap = { blue:'hl-blue', red:'hl-red', green:'hl-green', yellow:'hl-yellow', purple:'hl-purple' };
                     const badgeColors = { blue:'#3b82f6', red:'#ef4444', green:'#22c55e', yellow:'#ca8a04', purple:'#a855f7' };
 
                     res.push({
                         key, dateStr:`${m}/${dd}`, weekDay: WEEK[wIdx], isWeekend: wIdx===0||wIdx===6,
-                        isToday: key === todayStr, // Add Today Flag
+                        isToday: key === todayStr,
                         startStock: s.inventory!==undefined?s.inventory:(i===0?10:res[i-1].endStock),
-                        harvestAM: hAM, harvestPM: hPM, deliveryHome: home,
-                        process, flash, adhoc, group, routePrep: rPrep,
-                        noonStock: noon, endStock: end, bottleInfo: bInfo, rawHomeList: actList,
+                        harvestAM: hAM, harvestPM: hPM, 
+                        deliveryHome: finalHome, isHomeOverridden: (s.deliveryHomeOverride !== undefined && s.deliveryHomeOverride !== null),
+                        csvHomeVal: csvHome, 
+                        process, flash, adhoc, group, routePrep: rPrep, sims,
+                        noonStock: noon, endStock: end, 
+                        buckets: calculateBuckets(end),
+                        bottleInfo: bInfo, rawHomeList: actList,
                         nextDayRoute: ((rawRoute.value[(wIdx+1)%7]||0)*0.18).toFixed(1),
                         afterNextRoute: ((rawRoute.value[(wIdx+2)%7]||0)*0.18).toFixed(1),
                         colorClass: colorMap[s.color] || '',
@@ -454,15 +600,50 @@
                 return res;
             });
 
-            const edit = (type, d) => {
-                drawer.value = { show:true, mode:'input', type, key:d.key, dateLabel:`${d.dateStr} ${d.weekDay}`, title:getTitle(type), val:d[type], 
-                                 isFriday: d.weekDay==='五', nextRoute:Number(d.nextDayRoute), afterNextRoute:Number(d.afterNextRoute) };
+            const filteredDays = computed(() => {
+                if(showHistory.value) return days.value;
+                return days.value.filter(d => d.key >= FILTER_DATE);
+            });
+
+            const edit = (type, d, idx=null) => {
+                const titleMap = {inventory:'期初庫存',harvestAM:'晨間收乳',harvestPM:'晚間收乳',deliveryHome:'家庭宅配',process:'加工製作',flash:'快閃活動',adhoc:'臨時訂單',routePrep:'晨配預製', sim:'調控預測'};
                 
-                if(type==='process') { drawer.value.pSmall=0; drawer.value.pBig=0; }
-                if(type==='adhoc') { drawer.value.adBig=d.adhoc.big||0; drawer.value.adSmall=d.adhoc.small||0; drawer.value.adCustom=d.adhoc.custom||0; }
-                if(type==='checklist') { 
-                    const chk = (savedData.value[d.key]||{}).checklist || {};
-                    drawer.value.list = d.rawHomeList.map(i=>({...i, status:chk[i.uuid]||'done'}));
+                drawer.value = { 
+                    show:true, mode:'input', type, key:d.key, 
+                    dateLabel:`${d.dateStr} ${d.weekDay}`, 
+                    title: (type==='sim' ? `調控 ${['A','B','C','D'][idx]}` : titleMap[type]||type), 
+                    val:d[type], 
+                    isFriday: d.weekDay==='五', 
+                    nextRoute:Number(d.nextDayRoute), afterNextRoute:Number(d.afterNextRoute) 
+                };
+                
+                if(type==='process') { 
+                    drawer.value.pSmall = d.process.mantouSmall || 0; 
+                    drawer.value.pBig = d.process.mantouBig || 0; 
+                }
+                
+                if(type==='adhoc') { 
+                    drawer.value.adBig = d.adhoc.big||0; 
+                    drawer.value.adSmall = d.adhoc.small||0; 
+                    drawer.value.adCustom = d.adhoc.custom||0; 
+                    drawer.value.adActive = d.adhoc.active !== false; 
+                    if(d.adhoc.active === undefined && d.adhoc.total === 0) drawer.value.adActive = false; 
+                    else if (d.adhoc.active === undefined) drawer.value.adActive = true; 
+                    else drawer.value.adActive = d.adhoc.active;
+                    drawer.value.adDesc = d.adhoc.desc || '';
+                }
+
+                if(type==='deliveryHome') {
+                    drawer.value.val = d.isHomeOverridden ? d.deliveryHome : null; 
+                    drawer.value.csvVal = d.csvHomeVal;
+                    drawer.value.list = d.rawHomeList;
+                }
+                if(type==='sim') {
+                    const s = d.sims[idx];
+                    drawer.value.simIdx = idx;
+                    drawer.value.val = s.val;
+                    drawer.value.simActive = s.active;
+                    drawer.value.simDesc = s.desc || '';
                 }
             };
 
@@ -472,12 +653,27 @@
             };
 
             const save = () => {
-                const { key, type, val, adBig, adSmall, adCustom, pSmall, pBig } = drawer.value;
+                const { key, type, val, adBig, adSmall, adCustom, adActive, adDesc, pSmall, pBig, simIdx, simActive, simDesc } = drawer.value;
                 const path = `days/${key}`; const up = {};
-                if(type==='adhoc') up[`${path}/adhoc`] = { total:(adBig*0.95)+(adSmall*0.5)+adCustom, big:adBig, small:adSmall, custom:adCustom };
-                else if(type==='process') { const curr=(savedData.value[key]?.process?.vol||0); up[`${path}/process`] = { vol:curr+(pSmall*3.7)+(pBig*1.3) }; }
-                else if(type==='checklist') { const m={}; drawer.value.list.forEach(i=>m[i.uuid]=i.status); up[`${path}/checklist`]=m; }
+                
+                if(type==='adhoc') {
+                    up[`${path}/adhoc`] = { 
+                        total:(adBig*0.95)+(adSmall*0.5)+adCustom, 
+                        big:adBig, small:adSmall, custom:adCustom,
+                        active: adActive,
+                        desc: adDesc 
+                    }; 
+                }
+                else if(type==='process') { 
+                    up[`${path}/process`] = { 
+                        vol: (pSmall*3.7)+(pBig*1.3),
+                        mantouSmall: pSmall,
+                        mantouBig: pBig
+                    }; 
+                }
                 else if(type==='flash') { const f=savedData.value[key]?.flash||{}; up[`${path}/flash`] = { vol:val, loc:f.loc||'' }; } 
+                else if(type==='deliveryHome') { up[`${path}/deliveryHomeOverride`] = (val === null || val === '') ? null : Number(val); }
+                else if(type==='sim') { up[`${path}/sims/${simIdx}`] = { val:Number(val), active:simActive, desc: simDesc }; }
                 else up[`${path}/${type}`] = Number(val);
                 
                 db.update(up).then(()=>{ toast.value={show:true,msg:'儲存成功'}; setTimeout(()=>toast.value.show=false,1500); drawer.value.show=false; });
@@ -491,12 +687,11 @@
 
             const adj=(n)=>drawer.value.val=parseFloat((drawer.value.val+n).toFixed(1));
             const setDateColor=(c)=>drawer.value.val=c; const setDateTask=(t)=>drawer.value.text=t;
-            const getTitle=(t)=>({inventory:'期初庫存',harvestAM:'晨間收乳',harvestPM:'晚間收乳',checklist:'家庭宅配',process:'加工製作',flash:'快閃活動',adhoc:'臨時訂單',routePrep:'晨配預製'}[t]||t);
             
             const parseRoute=(t)=>{const r=t.split('\n').slice(1);const res=[0,0,0,0,0,0,0];r.forEach(x=>{const c=x.split(',');if(c.length<3)return;for(let d=0;d<7;d++){let s=0;for(let k=0;k<5;k++)s+=(parseInt(c[(3+((d===0?6:d-1)*5))+k]?.replace(/２/g,'2'))||0);res[d]+=s;}});rawRoute.value=res;};
             const parseHome=(t)=>{const r=t.split('\n').slice(1);const d=[[],[],[],[],[]];r.forEach(x=>{const c=x.split(',');if(c.length<2)return;for(let i=0;i<5;i++){const b=parseInt(c[2+i*2])||0,s=parseInt(c[3+i*2])||0;if(b||s)d[i].push({uuid:c[0],name:c[1],big:b,small:s});}});rawHome.value=d;};
 
-            return { days, todayEndStock:computed(()=>days.value.find(d=>d.isToday)?.endStock||0), drawer, toast, colorOptions, taskOptions, edit, openDateSettings, save, saveDateSettings, setDateColor, setDateTask, adj };
+            return { days, filteredDays, todayEndStock:computed(()=>days.value.find(d=>d.isToday)?.endStock||0), drawer, toast, colorOptions, taskOptions, showHistory, edit, openDateSettings, save, saveDateSettings, setDateColor, setDateTask, adj };
         }
     }).mount('#app');
 </script>
