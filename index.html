@@ -27,6 +27,7 @@
             display: flex; flex-direction: column; scroll-snap-type: x mandatory;
             background: white;
             scrollbar-width: thin;
+            scroll-behavior: smooth; /* 加入平滑滾動 */
         }
         
         .table-wrapper::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -517,7 +518,7 @@
 </div>
 
 <script>
-    const { createApp, ref, computed, nextTick, onMounted } = Vue;
+    const { createApp, ref, computed, nextTick, onMounted, watch } = Vue;
     const firebaseConfig = { apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo", authDomain: "crm-ts-1225-001.firebaseapp.com", databaseURL: "https://crm-ts-1225-001-default-rtdb.firebaseio.com", projectId: "crm-ts-1225-001", storageBucket: "crm-ts-1225-001.firebasestorage.app", messagingSenderId: "925760221722", appId: "1:925760221722:web:1aeda0b82f1f16b8dcd7a3" };
     const CSV_ROUTE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=216467280&single=true&output=csv';
     const CSV_HOME = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQF9dZUNtfJjbPIf4_3wvrJoVIv7WxGrXKEit9V0ou25BA9L1lMCEjqykH41p3f2MZc2b02nMLJXnrw/pub?gid=59343971&single=true&output=csv';
@@ -536,10 +537,15 @@
             const fontLevel = ref(1); // 1, 1.3, 1.6
             const printMode = ref(false);
             
-            const START = new Date('2026-02-04');
-            const FILTER_DATE = '2026-02-13';
+            // --- 修改 1：起始日期與過濾日期 ---
+            const START = new Date('2026-03-11T00:00:00');
+            const FILTER_DATE = '2026-03-11';
+            
             const WEEK = ['日','一','二','三','四','五','六'];
-            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // --- 修改 4：修正本地時區判定，避免 UTC 導致錯誤的今天 ---
+            const dNow = new Date();
+            const todayStr = `${dNow.getFullYear()}-${String(dNow.getMonth()+1).padStart(2,'0')}-${String(dNow.getDate()).padStart(2,'0')}`;
             
             const colorOptions = [
                 { val:'blue', bg:'bg-blue-50', border:'border-blue-200' },
@@ -550,10 +556,36 @@
             ];
             const taskOptions = ['公休日', '快閃日', '團購日', '庫存處理', '送貨日', '盤點日'];
 
+            // --- 修改 3：自動滾動並置中顯示當日 ---
+            const scrollToToday = () => {
+                setTimeout(() => {
+                    const wrapper = document.querySelector('.table-wrapper');
+                    const todayCol = document.querySelector('.is-today-header');
+                    if (wrapper && todayCol) {
+                        const wrapperWidth = wrapper.clientWidth;
+                        const colLeft = todayCol.offsetLeft;
+                        const colWidth = todayCol.offsetWidth;
+                        wrapper.scrollTo({
+                            left: colLeft - (wrapperWidth / 2) + (colWidth / 2),
+                            behavior: 'smooth'
+                        });
+                    }
+                }, 100);
+            };
+
+            // 監聽顯示模式切換，重新定位置中
+            watch(showHistory, () => {
+                scrollToToday();
+            });
+
             onMounted(async () => {
+                scrollToToday(); // 網頁剛載入時也自動滑動置中
                 const [r1, r2] = await Promise.all([fetch(CSV_ROUTE).then(x=>x.text()), fetch(CSV_HOME).then(x=>x.text())]);
                 parseRoute(r1); parseHome(r2);
-                db.on('value', s => savedData.value = s.val()?.days || {});
+                db.on('value', s => { 
+                    savedData.value = s.val()?.days || {};
+                    scrollToToday(); // 資料更新後也可確保位置正確
+                });
             });
 
             const calculateBuckets = (stock) => {
@@ -592,8 +624,10 @@
                     const finalHome = (s.deliveryHomeOverride !== undefined && s.deliveryHomeOverride !== null) 
                                       ? s.deliveryHomeOverride : csvHome;
 
-                    const hAM = s.harvestAM ?? 13;
-                    const hPM = s.harvestPM ?? 15;
+                    // --- 修改 2：變更預設收乳量（早上 18，晚上 20） ---
+                    const hAM = s.harvestAM ?? 18; 
+                    const hPM = s.harvestPM ?? 20;
+                    
                     const flash = s.flash || { vol:0, loc:'' };
                     const process = s.process || { vol:0, mantouBig:0, mantouSmall:0 };
                     
